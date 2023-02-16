@@ -11,27 +11,6 @@ servers:
 security:
   - ApiKeyAuth: []
 paths:
-  /info:
-    get:
-      operationId: getApplicationInfo
-      summary: Retrieve current application info
-      description: >-
-        Retrieve current application info to confirm the application is up and
-        able to serve requests. Errors mean the application is broken.
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApplicationInfo'
-        '500':
-          description: Generic server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemJson'
-      security: []
   /pubkeys:
     post:
       operationId: reservePubKey
