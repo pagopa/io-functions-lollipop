@@ -11,6 +11,20 @@ servers:
 security:
   - ApiKeyAuth: []
 paths:
+  /ping:
+    get:
+      operationId: ping
+      responses:
+        '200':
+          description: pong
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  message:
+                    type: string
+                  
   /pubkeys:
     post:
       operationId: reservePubKey
