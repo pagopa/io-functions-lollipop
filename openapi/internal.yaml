@@ -16,15 +16,9 @@ paths:
       operationId: ping
       responses:
         '200':
-          description: pong
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: 
-                  message:
-                    type: string
-                  
+          description: success
+        '500':
+          description: Internal Server error
   /pubkeys:
     post:
       operationId: reservePubKey
