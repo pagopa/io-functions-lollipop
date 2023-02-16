@@ -11,6 +11,16 @@ servers:
 security:
   - ApiKeyAuth: []
 paths:
+  /ping:
+    get:
+      operationId: ping
+      responses:
+        '200':
+          description: Success
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server error
   /pubkeys:
     post:
       operationId: reservePubKey

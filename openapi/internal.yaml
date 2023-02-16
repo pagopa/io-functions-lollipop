@@ -16,7 +16,9 @@ paths:
       operationId: ping
       responses:
         '200':
-          description: success
+          description: Success
+        '404':
+          description: Not Found
         '500':
           description: Internal Server error
   /pubkeys:
