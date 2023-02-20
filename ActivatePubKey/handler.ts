@@ -12,12 +12,12 @@ import {
   IResponseErrorNotFound,
   IResponseErrorValidation,
   IResponseSuccessJson,
-  ResponseErrorInternal
+  ResponseErrorInternal,
+  ResponseSuccessJson
 } from "@pagopa/ts-commons/lib/responses";
 import * as express from "express";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
-import { AssertionRefSha512 } from "../generated/definitions/internal/AssertionRefSha512";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
 import {
   AssertionWriter,
@@ -25,20 +25,15 @@ import {
   getPopDocumentWriter,
   PopDocumentWriter
 } from "../utils/writers";
-import { identity, pipe } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
-import * as J from "fp-ts/Json";
-import * as E from "fp-ts/lib/Either";
 import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
-import {
-  CosmosDecodingError,
-  toCosmosErrorResponse
-} from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
+import { toCosmosErrorResponse } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
 import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionRefSha256";
-import { JwkPubKey } from "../generated/definitions/internal/JwkPubKey";
 import * as jose from "jose";
 import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionRefSha384";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
+import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -60,17 +55,25 @@ const calculateThumbprint = (
     err => new Error(`Can not calculate JwkThumbprint | ${err}`)
   );
 
-const getJoseJwk = (jwkPubKey: JwkPubKey): TE.TaskEither<Error, jose.JWK> =>
-  TE.tryCatch(
-    () => jose.exportJWK({ type: jwkPubKey.kty }),
-    err => new Error(`Can not get Jwk | ${err}`)
+const getJoseJwk = (jwkPubKey: JwkPublicKey): TE.TaskEither<Error, jose.JWK> =>
+  pipe(
+    TE.tryCatch(
+      () => jose.importJWK(jwkPubKey),
+      err => new Error(`Can not import Jwk | ${err}`)
+    ),
+    TE.chain(joseKey =>
+      TE.tryCatch(
+        () => jose.exportJWK(joseKey),
+        err => new Error(`Can not export Jwk | ${err}`)
+      )
+    )
   );
 
 export const ActivatePubKeyHandler = (
   PopDocumentReader: PopDocumentReader,
   PopDocumentWriter: PopDocumentWriter,
   AssertionWriter: AssertionWriter
-): ActivatePubKeyHandler => (context, assertion_ref, body) => {
+): ActivatePubKeyHandler => (_, assertion_ref, body) => {
   /*
    *   STEPS:
    *   1. create assertionFileName(based on CF and assertion_ref)
@@ -114,24 +117,33 @@ export const ActivatePubKeyHandler = (
                 ),
                 TE.fold(
                   // if prefix was already sha512 we must return the first retrievedPopDocument
-                  () => TE.right(retrievedPopDocument),
+                  () => TE.right(ResponseSuccessJson(retrievedPopDocument)),
                   () => {
                     const errorOrMasterKey = pipe(
                       pubKey,
-                      J.parse,
-                      E.chainW(JwkPubKey.decode),
-                      TE.fromEither,
+                      TE.of,
                       TE.chainW(getJoseJwk),
                       TE.chainW(calculateThumbprint),
+                      TE.mapLeft(error => ResponseErrorInternal(error.message)),
                       TE.map(
                         thumbprint =>
                           `${JwkPubKeyHashAlgorithmEnum.sha512}-${thumbprint}`
                       ),
                       TE.chainW(createdAssertionRef =>
                         TE.fromEither(AssertionRef.decode(createdAssertionRef))
+                      ),
+                      TE.mapLeft(_ =>
+                        ResponseErrorInternal(`Can not decode to assertionRef`)
                       )
                     );
-                    return pipe(errorOrMasterKey, TE.chainW(PopDocumentWriter));
+                    return pipe(
+                      errorOrMasterKey,
+                      TE.chainW(PopDocumentWriter),
+                      TE.map(res => ResponseSuccessJson(res)),
+                      TE.mapLeft(error =>
+                        ResponseErrorInternal(toCosmosErrorResponse(error).kind)
+                      )
+                    );
                   }
                 )
               )
