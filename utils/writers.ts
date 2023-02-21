@@ -1,34 +1,72 @@
 import { pipe } from "fp-ts/lib/function";
-import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import * as TE from "fp-ts/lib/TaskEither";
-import { CosmosErrors } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
-import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
-import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
-import { LolliPOPKeysModel } from "../model/lollipop_keys";
+import * as E from "fp-ts/lib/Either";
+import { upsertBlobFromObject } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
+import {
+  AssertionFileName,
+  LolliPOPKeysModel,
+  NewLolliPopPubKeys,
+  RetrievedLolliPopPubKeys
+} from "../model/lollipop_keys";
 import { BlobService } from "azure-storage";
+import {
+  cosmosErrorsToString,
+  DomainError,
+  ErrorKind,
+  InternalError
+} from "./domain_errors";
+import { getConfigOrThrow } from "./config";
 
-// TODO: right: retrievedPopDocument
-// left: errors
+const config = getConfigOrThrow();
+
 export type PopDocumentWriter = (
-  assertionRef: AssertionRef
-) => TE.TaskEither<CosmosErrors, ActivatedPubKey>;
+  item: NewLolliPopPubKeys
+) => TE.TaskEither<DomainError, RetrievedLolliPopPubKeys>;
 
-// TODO:CHANGE LEFT/RIGHT
 export type AssertionWriter = (
-  assertionFileName: string,
-  assertion: NonEmptyString
-) => TE.TaskEither<unknown, unknown>;
+  assertionFileName: AssertionFileName,
+  assertion: string
+) => TE.TaskEither<InternalError, true>;
 
 //IMPLEMENTATION
 export const getPopDocumentWriter = (
   lollipopKeysModel: LolliPOPKeysModel
-): PopDocumentWriter => assertionRef => {
-  return TE.of({} as ActivatedPubKey);
+): PopDocumentWriter => item => {
+  return pipe(
+    lollipopKeysModel.upsert(item),
+    TE.mapLeft(error => ({
+      kind: ErrorKind.Internal as const,
+      detail: cosmosErrorsToString(error)
+    }))
+  );
 };
 
 export const getAssertionWriter = (
   assertionBlobService: BlobService
 ): AssertionWriter => (assertionFileName, assertion) => {
-  return TE.of({});
+  return pipe(
+    TE.tryCatch(
+      () =>
+        upsertBlobFromObject(
+          assertionBlobService,
+          config.LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
+          assertionFileName,
+          assertion
+        ),
+      E.toError
+    ),
+    TE.chain(TE.fromEither),
+    TE.chainW(
+      TE.fromOption(() => ({
+        kind: ErrorKind.Internal as const,
+        detail: "Can not upload blob to storage"
+      }))
+    ),
+    TE.mapLeft(error =>
+      error instanceof Error
+        ? { kind: ErrorKind.Internal as const, detail: `${error}` }
+        : error
+    ),
+    TE.map(_ => true)
+  );
 };
