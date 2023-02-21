@@ -5,6 +5,8 @@ import { CosmosErrors } from "@pagopa/io-functions-commons/dist/src/utils/cosmos
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
+import { LolliPOPKeysModel } from "../model/lollipop_keys";
+import { BlobService } from "azure-storage";
 
 // TODO: right: retrievedPopDocument
 // left: errors
@@ -20,14 +22,13 @@ export type AssertionWriter = (
 
 //IMPLEMENTATION
 export const getPopDocumentWriter = (
-  COSMOS_MODEL: any
+  lollipopKeysModel: LolliPOPKeysModel
 ): PopDocumentWriter => assertionRef => {
   return TE.of({} as ActivatedPubKey);
 };
 
-export const getAssertionWriter = (BLOB_STORAGE: any): AssertionWriter => (
-  assertionFileName,
-  assertion
-) => {
+export const getAssertionWriter = (
+  assertionBlobService: BlobService
+): AssertionWriter => (assertionFileName, assertion) => {
   return TE.of({});
 };

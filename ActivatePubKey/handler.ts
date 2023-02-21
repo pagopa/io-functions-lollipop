@@ -34,6 +34,8 @@ import * as jose from "jose";
 import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionRefSha384";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
+import { LolliPOPKeysModel } from "../model/lollipop_keys";
+import { BlobService } from "azure-storage";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -157,13 +159,13 @@ export const ActivatePubKeyHandler = (
 };
 
 export const ActivatePubKey = (
-  COSMOS_MODEL: any,
-  BLOB_STORAGE: any
+  lollipopKeysModel: LolliPOPKeysModel,
+  assertionBlobService: BlobService
 ): express.RequestHandler => {
   const handler = ActivatePubKeyHandler(
-    getPopDocumentReader(COSMOS_MODEL),
-    getPopDocumentWriter(COSMOS_MODEL),
-    getAssertionWriter(BLOB_STORAGE)
+    getPopDocumentReader(lollipopKeysModel),
+    getPopDocumentWriter(lollipopKeysModel),
+    getAssertionWriter(assertionBlobService)
   );
 
   const middlewaresWrap = withRequestMiddlewares(
