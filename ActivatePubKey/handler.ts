@@ -27,15 +27,31 @@ import {
 } from "../utils/writers";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
+import * as J from "fp-ts/Json";
 import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
 import { toCosmosErrorResponse } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
 import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionRefSha256";
 import * as jose from "jose";
 import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionRefSha384";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
-import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
-import { LolliPOPKeysModel } from "../model/lollipop_keys";
+import {
+  JwkPublicKey,
+  JwkPublicKeyFromToken
+} from "@pagopa/ts-commons/lib/jwk";
+import {
+  AssertionFileName,
+  LolliPOPKeysModel,
+  TTL_VALUE_AFTER_UPDATE,
+  ValidLolliPopPubKeys
+} from "../model/lollipop_keys";
 import { BlobService } from "azure-storage";
+import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
+import { readableReport } from "@pagopa/ts-commons/lib/reporters";
+import {
+  retrievedLollipopKeysToApiActivatedPubKey,
+  retrievedLollipopKeysToApiLollipopKeys,
+  RetrievedValidPopDocument
+} from "../utils/lollipop_keys_utils";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -84,7 +100,9 @@ export const ActivatePubKeyHandler = (
    *   4. if algo != sha512 upsert PopDocument with sha512 prefix
    *   */
 
-  const assertionFileName = `${body.fiscal_code}-${assertion_ref}`;
+  const errorOrAssertionFileName = AssertionFileName.decode(
+    `${body.fiscal_code}-${assertion_ref}`
+  );
   const prefix = AssertionRefSha256.is(assertion_ref)
     ? JwkPubKeyHashAlgorithmEnum.sha256
     : AssertionRefSha384.is(assertion_ref)
@@ -92,61 +110,114 @@ export const ActivatePubKeyHandler = (
     : JwkPubKeyHashAlgorithmEnum.sha512;
 
   return pipe(
-    AssertionWriter(assertionFileName, body.assertion),
-    TE.mapLeft(_ => ResponseErrorInternal("storeAssertion failed")),
-    TE.chainW(() =>
+    errorOrAssertionFileName,
+    TE.fromEither,
+    TE.mapLeft(errors =>
+      ResponseErrorInternal(
+        `Could not decode assertion file name | ${readableReport(errors)}`
+      )
+    ),
+    TE.chain(assertionFileName =>
       pipe(
-        PopDocumentReader(assertion_ref),
-        TE.mapLeft(error =>
-          ResponseErrorInternal(toCosmosErrorResponse(error).kind)
-        ),
-        // retrieve pubkey here (JWK ENCODED)
-        TE.chain(({ pubKey }) =>
+        AssertionWriter(assertionFileName, body.assertion),
+        TE.mapLeft(_ => ResponseErrorInternal("storeAssertion failed")),
+        TE.chainW(() =>
           pipe(
-            //Write predefined user assertion_ref
-            PopDocumentWriter(assertion_ref),
+            PopDocumentReader(assertion_ref),
             TE.mapLeft(error =>
               ResponseErrorInternal(toCosmosErrorResponse(error).kind)
             ),
-            // if prefix wasn't sha512 we write a
-            // popDocument with a masterkey generated
-            TE.chainW(retrievedPopDocument =>
+            // retrieve pubkey here (JWK ENCODED)
+            TE.chain(({ pubKey }) =>
               pipe(
-                prefix,
-                TE.fromPredicate(
-                  prefix => prefix !== JwkPubKeyHashAlgorithmEnum.sha512,
-                  () => false
+                //Write predefined user assertion_ref
+                PopDocumentWriter({
+                  pubKey,
+                  assertionFileName,
+                  assertionType: body.assertion_type,
+                  assertionRef: assertion_ref,
+                  expiredAt: body.expires_at,
+                  fiscalCode: body.fiscal_code,
+                  status: PubKeyStatusEnum.VALID,
+                  ttl: TTL_VALUE_AFTER_UPDATE
+                }),
+                TE.mapLeft(error =>
+                  ResponseErrorInternal(toCosmosErrorResponse(error).kind)
                 ),
-                TE.fold(
-                  // if prefix was already sha512 we must return the first retrievedPopDocument
-                  () => TE.right(ResponseSuccessJson(retrievedPopDocument)),
-                  () => {
-                    const errorOrMasterKey = pipe(
-                      pubKey,
-                      TE.of,
-                      TE.chainW(getJoseJwk),
-                      TE.chainW(calculateThumbprint),
-                      TE.mapLeft(error => ResponseErrorInternal(error.message)),
-                      TE.map(
-                        thumbprint =>
-                          `${JwkPubKeyHashAlgorithmEnum.sha512}-${thumbprint}`
-                      ),
-                      TE.chainW(createdAssertionRef =>
-                        TE.fromEither(AssertionRef.decode(createdAssertionRef))
-                      ),
-                      TE.mapLeft(_ =>
-                        ResponseErrorInternal(`Can not decode to assertionRef`)
-                      )
-                    );
-                    return pipe(
-                      errorOrMasterKey,
-                      TE.chainW(PopDocumentWriter),
-                      TE.map(res => ResponseSuccessJson(res)),
-                      TE.mapLeft(error =>
-                        ResponseErrorInternal(toCosmosErrorResponse(error).kind)
-                      )
-                    );
-                  }
+                // if prefix wasn't sha512 we write a
+                // popDocument with a masterkey generated
+                TE.chainW(retrievedPopDocument =>
+                  pipe(
+                    prefix,
+                    TE.fromPredicate(
+                      prefix => prefix !== JwkPubKeyHashAlgorithmEnum.sha512,
+                      () => false
+                    ),
+                    TE.fold(
+                      // if prefix was already sha512 we must return the first retrievedPopDocument
+                      () =>
+                        TE.right(
+                          ResponseSuccessJson(
+                            retrievedLollipopKeysToApiActivatedPubKey(
+                              retrievedPopDocument
+                            )
+                          )
+                        ),
+                      () => {
+                        const errorOrMasterKey = pipe(
+                          pubKey,
+                          JwkPublicKeyFromToken.decode,
+                          TE.fromEither,
+                          TE.chainW(getJoseJwk),
+                          TE.chainW(calculateThumbprint),
+                          TE.mapLeft(error =>
+                            error instanceof Error
+                              ? ResponseErrorInternal(error.message)
+                              : ResponseErrorInternal(readableReport(error))
+                          ),
+                          TE.map(
+                            thumbprint =>
+                              `${JwkPubKeyHashAlgorithmEnum.sha512}-${thumbprint}`
+                          ),
+                          TE.chainW(createdAssertionRef =>
+                            TE.fromEither(
+                              AssertionRef.decode(createdAssertionRef)
+                            )
+                          ),
+                          TE.mapLeft(_ =>
+                            ResponseErrorInternal(
+                              `Can not decode to assertionRef`
+                            )
+                          )
+                        );
+                        return pipe(
+                          errorOrMasterKey,
+                          TE.chainW(masterKey =>
+                            PopDocumentWriter({
+                              pubKey,
+                              ttl: TTL_VALUE_AFTER_UPDATE,
+                              assertionRef: masterKey,
+                              assertionFileName,
+                              status: PubKeyStatusEnum.VALID,
+                              assertionType: body.assertion_type,
+                              fiscalCode: body.fiscal_code,
+                              expiredAt: body.expires_at
+                            })
+                          ),
+                          TE.map(res =>
+                            ResponseSuccessJson(
+                              retrievedLollipopKeysToApiActivatedPubKey(res)
+                            )
+                          ),
+                          TE.mapLeft(error =>
+                            ResponseErrorInternal(
+                              toCosmosErrorResponse(error).kind
+                            )
+                          )
+                        );
+                      }
+                    )
+                  )
                 )
               )
             )
@@ -170,7 +241,6 @@ export const ActivatePubKey = (
 
   const middlewaresWrap = withRequestMiddlewares(
     ContextMiddleware(),
-    // AzureApiAuthMiddleware(new Set([ApiLollipopAssertionRead])),
     RequiredParamMiddleware("assertion_ref", AssertionRef),
     RequiredBodyPayloadMiddleware(ActivatePubKeyPayload)
   );

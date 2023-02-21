@@ -1,20 +1,31 @@
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/lib/TaskEither";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
-import { CosmosErrors } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
-import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
-import { LolliPOPKeysModel } from "../model/lollipop_keys";
+import {
+  LolliPOPKeysModel,
+  RetrievedLolliPopPubKeys
+} from "../model/lollipop_keys";
+import { flow, pipe } from "fp-ts/lib/function";
+import { cosmosErrorsToString, DomainError, ErrorKind } from "./domain_errors";
 
 export type PopDocumentReader = RTE.ReaderTaskEither<
   AssertionRef,
-  CosmosErrors,
-  { pubKey: JwkPublicKey }
+  DomainError,
+  RetrievedLolliPopPubKeys
 >;
 
 // IMPLEMENTATIONS
-// MOCKED ATM
 export const getPopDocumentReader = (
   lollipopKeysModel: LolliPOPKeysModel
 ): PopDocumentReader => (assertionRef: AssertionRef) => {
-  return TE.of({ pubKey: {} as JwkPublicKey });
+  return pipe(
+    lollipopKeysModel.findLastVersionByModelId([assertionRef]),
+    TE.mapLeft(error => ({
+      kind: ErrorKind.Internal as const,
+      detail: cosmosErrorsToString(error)
+    })),
+    TE.chainW(
+      flow(TE.fromOption(() => ({ kind: ErrorKind.NotFound as const })))
+    )
+  );
 };

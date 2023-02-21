@@ -51,25 +51,31 @@ export const PendingLolliPopPubKeys = t.interface({
 });
 export type PendingLolliPopPubKeys = t.TypeOf<typeof PendingLolliPopPubKeys>;
 
-export const NotPendingLolliPopPubKeys = t.interface({
+export const BaseNotPendingLollipopPubKeys = t.interface({
   assertionFileName: AssertionFileName,
   assertionRef: AssertionRef,
   assertionType: AssertionType,
   expiredAt: Timestamp,
   fiscalCode: FiscalCode,
-  pubKey: NonEmptyString,
-  status: t.union([
-    t.literal(PubKeyStatusEnum.VALID),
-    t.literal(PubKeyStatusEnum.REVOKED)
-  ])
+  pubKey: NonEmptyString
 });
-export type NotPendingLolliPopPubKeys = t.TypeOf<
-  typeof NotPendingLolliPopPubKeys
->;
+
+export const ValidLolliPopPubKeys = t.intersection([
+  BaseNotPendingLollipopPubKeys,
+  t.interface({ status: t.literal(PubKeyStatusEnum.VALID) })
+]);
+export type ValidLolliPopPubKeys = t.TypeOf<typeof ValidLolliPopPubKeys>;
+
+export const RevokedLolliPopPubKeys = t.intersection([
+  BaseNotPendingLollipopPubKeys,
+  t.interface({ status: t.literal(PubKeyStatusEnum.REVOKED) })
+]);
+export type RevokedLolliPopPubKeys = t.TypeOf<typeof RevokedLolliPopPubKeys>;
 
 // T type
 export const LolliPopPubKeys = t.union([
-  NotPendingLolliPopPubKeys,
+  ValidLolliPopPubKeys,
+  RevokedLolliPopPubKeys,
   PendingLolliPopPubKeys
 ]);
 export type LolliPopPubKeys = t.TypeOf<typeof LolliPopPubKeys>;
@@ -81,6 +87,7 @@ export type NewLolliPopPubKeys = t.TypeOf<typeof NewLolliPopPubKeys>;
 // TR type
 export const RetrievedLolliPopPubKeys = t.intersection([
   LolliPopPubKeys,
+  Ttl,
   RetrievedVersionedModelTTL
 ]);
 export type RetrievedLolliPopPubKeys = t.TypeOf<
