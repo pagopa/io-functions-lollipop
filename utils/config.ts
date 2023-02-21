@@ -12,6 +12,7 @@ import { pipe } from "fp-ts/lib/function";
 
 import { readableReport } from "@pagopa/ts-commons/lib/reporters";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { withDefault } from "@pagopa/ts-commons/lib/types";
 
 // global app configuration
 export type IConfig = t.TypeOf<typeof IConfig>;
@@ -24,6 +25,10 @@ export const IConfig = t.interface({
   COSMOSDB_NAME: NonEmptyString,
   COSMOSDB_URI: NonEmptyString,
   LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING: NonEmptyString,
+  LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME: withDefault(
+    NonEmptyString,
+    "assertions" as NonEmptyString
+  ),
 
   isProduction: t.boolean
 });
