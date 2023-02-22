@@ -5,7 +5,7 @@ import { flow, pipe } from "fp-ts/lib/function";
 import { JwkPublicKeyFromToken } from "@pagopa/ts-commons/lib/jwk";
 import * as jose from "jose";
 import * as t from "io-ts";
-import { NotPendingLolliPopPubKeys } from "../model/lollipop_keys";
+import { LolliPopPubKeys } from "../model/lollipop_keys";
 import {
   JwkPubKeyHashAlgorithm,
   JwkPubKeyHashAlgorithmEnum
@@ -47,7 +47,7 @@ const getMasterAssertionRefType = (
  */
 export const getAllAssertionsRef = (
   masterAlgo: JwkPubKeyHashAlgorithm,
-  usedLollipopPubKeys: NotPendingLolliPopPubKeys
+  usedLollipopPubKeys: LolliPopPubKeys
 ): TE.TaskEither<Error, AssertionsRef> =>
   pipe(
     usedLollipopPubKeys.assertionRef,
@@ -84,7 +84,6 @@ export const getAllAssertionsRef = (
             used: usedLollipopPubKeys.assertionRef
           }))
         ),
-
       () => TE.of({ master: usedLollipopPubKeys.assertionRef })
     )
   );
