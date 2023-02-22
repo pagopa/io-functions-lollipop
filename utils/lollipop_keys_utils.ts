@@ -1,8 +1,12 @@
+import * as TE from "fp-ts/lib/TaskEither";
 import * as t from "io-ts";
+import * as jose from "jose";
 import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
+import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
+import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 
 export const retrievedValidPopDocument = t.intersection([
   ValidLolliPopPubKeys,
@@ -26,3 +30,12 @@ export const retrievedLollipopKeysToApiActivatedPubKey = (
   expires_at: popDocument.expiredAt,
   ttl: popDocument.ttl
 });
+
+export const calculateThumbprint = (
+  jwkPubKey: JwkPublicKey,
+  prefix: JwkPubKeyHashAlgorithmEnum
+): TE.TaskEither<Error, string> =>
+  TE.tryCatch(
+    () => jose.calculateJwkThumbprint(jwkPubKey, prefix),
+    err => new Error(`Can not calculate JwkThumbprint | ${err}`)
+  );
