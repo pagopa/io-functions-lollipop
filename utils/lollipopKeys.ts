@@ -84,7 +84,6 @@ export const getAllAssertionsRef = (
             used: usedAssertionRef
           }))
         ),
-
       () => TE.of({ master: usedAssertionRef })
     )
   );

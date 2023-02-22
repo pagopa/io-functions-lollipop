@@ -72,6 +72,14 @@ export const RevokedLolliPopPubKeys = t.intersection([
 ]);
 export type RevokedLolliPopPubKeys = t.TypeOf<typeof RevokedLolliPopPubKeys>;
 
+export const NotPendingLolliPopPubKeys = t.union([
+  ValidLolliPopPubKeys,
+  RevokedLolliPopPubKeys
+]);
+export type NotPendingLolliPopPubKeys = t.TypeOf<
+  typeof NotPendingLolliPopPubKeys
+>;
+
 // T type
 export const LolliPopPubKeys = t.union([
   ValidLolliPopPubKeys,
