@@ -1,5 +1,11 @@
 import { CosmosErrors } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
 import { errorsToReadableMessages } from "@pagopa/ts-commons/lib/reporters";
+import {
+  IResponseErrorInternal,
+  IResponseErrorNotFound,
+  ResponseErrorInternal,
+  ResponseErrorNotFound
+} from "@pagopa/ts-commons/lib/responses";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { pipe } from "fp-ts/function";
 
@@ -31,3 +37,10 @@ export const cosmosErrorsToString = (errs: CosmosErrors): NonEmptyString =>
 
     errorString => errorString as NonEmptyString
   );
+
+export const domainErrorToResponseError = (
+  error: DomainError
+): IResponseErrorNotFound | IResponseErrorInternal =>
+  error.kind === ErrorKind.NotFound
+    ? ResponseErrorNotFound(error.kind, "Could not find requested resource")
+    : ResponseErrorInternal(error.detail);

@@ -11,7 +11,6 @@ import {
 } from "../model/lollipop_keys";
 import {
   cosmosErrorsToString,
-  DomainError,
   ErrorKind,
   InternalError
 } from "./domain_errors";
@@ -54,17 +53,16 @@ export const getAssertionWriter = (
         ),
       E.toError
     ),
-    TE.chain(TE.fromEither),
+    TE.chainW(TE.fromEither),
+    TE.mapLeft((error: Error) => ({
+      kind: ErrorKind.Internal as const,
+      detail: `${error.message}`
+    })),
     TE.chainW(
       TE.fromOption(() => ({
         kind: ErrorKind.Internal as const,
         detail: "Can not upload blob to storage"
       }))
-    ),
-    TE.mapLeft(error =>
-      error instanceof Error
-        ? { kind: ErrorKind.Internal as const, detail: `${error}` }
-        : error
     ),
     TE.map(_ => true)
   );
