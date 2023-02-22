@@ -1,0 +1,59 @@
+import * as jose from "jose";
+
+import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
+import { FiscalCode, NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { CosmosResource } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
+
+import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
+import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
+
+import { PendingLolliPopPubKeys } from "../model/lollipop_keys";
+
+export const aFiscalCode = "AAAAAA89S20I111X" as FiscalCode;
+
+export const anInvalidJwk: JwkPublicKey = {
+  alg: "",
+  e: "e",
+  kty: "RSA",
+  n: "n"
+};
+export const aValidJwk: JwkPublicKey = {
+  kty: "EC",
+  crv: "P-256",
+  x: "SVqB4JcUD6lsfvqMr-OKUNUphdNn64Eay60978ZlL74",
+  y: "lf0u0pMj4lGAzZix5u4Cm5CMQIgMNpkwy163wtKYVKI"
+};
+export const toEncodedJwk = (jwk: JwkPublicKey) =>
+  jose.base64url.encode(JSON.stringify(jwk)) as NonEmptyString;
+
+export const aValidSha256AssertionRef = "sha256-9f86d081884c7d659a2feaa0c55ad015a3bf4f1234" as AssertionRef;
+export const aValidSha512AssertionRef = "sha512-nX5CfUc5R-FoYKYZwvQMuc4Tt-heb7vHi_O-AMUSqHNVCw9kNaN2SVuN-DXtGXyUhrcVcQdCyY6FVzl_vyWXNA" as AssertionRef;
+
+export const aPendingSh256LollipopPubKey: PendingLolliPopPubKeys = {
+  assertionRef: aValidSha256AssertionRef,
+  pubKey: toEncodedJwk(aValidJwk),
+  status: PubKeyStatusEnum.PENDING
+};
+
+// --------------------
+// Retrieved models
+// --------------------
+
+// CosmosResourceMetadata
+export const aCosmosResourceMetadata: Omit<CosmosResource, "id"> = {
+  _etag: "_etag",
+  _rid: "_rid",
+  _self: "_self",
+  _ts: 1
+};
+
+export const aRetrievedPendingLollipopPubKeySha256 = {
+  ...aCosmosResourceMetadata,
+  ...aPendingSh256LollipopPubKey
+};
+
+export const aRetrievedPendingLollipopPubKeySha512 = {
+  ...aCosmosResourceMetadata,
+  ...aPendingSh256LollipopPubKey,
+  assertionRef: aValidSha512AssertionRef
+};

@@ -34,7 +34,6 @@ import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
   AssertionFileName,
-  LolliPOPKeysModel,
   TTL_VALUE_AFTER_UPDATE
 } from "../model/lollipop_keys";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
@@ -58,12 +57,12 @@ type ActivatePubKeyHandler = (
 >;
 
 export const ActivatePubKeyHandler = (
-  PopDocumentReader: PopDocumentReader,
-  PopDocumentWriter: PopDocumentWriter,
-  AssertionWriter: AssertionWriter
-): ActivatePubKeyHandler => (_, assertion_ref, body) => {
-  return pipe(
-    PopDocumentReader(assertion_ref),
+  popDocumentReader: PopDocumentReader,
+  popDocumentWriter: PopDocumentWriter,
+  assertionWriter: AssertionWriter
+): ActivatePubKeyHandler => (_, assertion_ref, body) =>
+  pipe(
+    popDocumentReader(assertion_ref),
     TE.mapLeft(domainErrorToResponseError),
     TE.chainW(popDocument =>
       pipe(
@@ -78,7 +77,7 @@ export const ActivatePubKeyHandler = (
         ),
         TE.chainFirst(({ assertionFileName }) =>
           pipe(
-            AssertionWriter(assertionFileName, body.assertion),
+            assertionWriter(assertionFileName, body.assertion),
             TE.mapLeft(error => ResponseErrorInternal(error.detail))
           )
         ),
@@ -92,7 +91,7 @@ export const ActivatePubKeyHandler = (
           "retrievedPopDocument",
           ({ assertionRefs, assertionFileName }) =>
             pipe(
-              PopDocumentWriter({
+              popDocumentWriter({
                 pubKey: popDocument.pubKey,
                 ttl: TTL_VALUE_AFTER_UPDATE,
                 assertionRef: assertionRefs.master,
@@ -115,7 +114,7 @@ export const ActivatePubKeyHandler = (
                 () => TE.right(void 0),
                 u =>
                   pipe(
-                    PopDocumentWriter({
+                    popDocumentWriter({
                       pubKey: popDocument.pubKey,
                       ttl: TTL_VALUE_AFTER_UPDATE,
                       assertionRef: u,
@@ -157,16 +156,16 @@ export const ActivatePubKeyHandler = (
     ),
     TE.toUnion
   )();
-};
 
 export const ActivatePubKey = (
-  lollipopKeysModel: LolliPOPKeysModel,
-  assertionBlobService: BlobService
+  popDocumentReader: PopDocumentReader,
+  popDocumentWriter: PopDocumentWriter,
+  assertionWriter: AssertionWriter
 ): express.RequestHandler => {
   const handler = ActivatePubKeyHandler(
-    getPopDocumentReader(lollipopKeysModel),
-    getPopDocumentWriter(lollipopKeysModel),
-    getAssertionWriter(assertionBlobService)
+    popDocumentReader,
+    popDocumentWriter,
+    assertionWriter
   );
 
   const middlewaresWrap = withRequestMiddlewares(

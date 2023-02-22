@@ -11,6 +11,8 @@ import {
 import { cosmosdbInstance } from "../utils/cosmosdb";
 import { getConfigOrThrow } from "../utils/config";
 import { ActivatePubKey } from "./handler";
+import { getPopDocumentReader } from "../utils/readers";
+import { getAssertionWriter, getPopDocumentWriter } from "../utils/writers";
 
 const config = getConfigOrThrow();
 
@@ -29,7 +31,11 @@ const assertionBlobService = createBlobService(
 // Add express route
 app.put(
   "/pubKeys/:assertion_ref",
-  ActivatePubKey(lollipopKeysModel, assertionBlobService)
+  ActivatePubKey(
+    getPopDocumentReader(lollipopKeysModel),
+    getPopDocumentWriter(lollipopKeysModel),
+    getAssertionWriter(assertionBlobService, config)
+  )
 );
 
 const azureFunctionHandler = createAzureFunctionHandler(app);
