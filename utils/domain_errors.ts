@@ -8,14 +8,14 @@ export enum ErrorKind {
   Internal = "Internal"
 }
 
-export type InternalError = {
-  kind: ErrorKind.Internal;
-  detail: string;
-};
+export interface InternalError {
+  readonly kind: ErrorKind.Internal;
+  readonly detail: string;
+}
 
-export type NotFoundError = {
-  kind: ErrorKind.NotFound;
-};
+export interface NotFoundError {
+  readonly kind: ErrorKind.NotFound;
+}
 
 export type DomainError = InternalError | NotFoundError;
 
