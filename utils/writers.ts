@@ -21,7 +21,7 @@ const config = getConfigOrThrow();
 
 export type PopDocumentWriter = (
   item: NewLolliPopPubKeys
-) => TE.TaskEither<DomainError, RetrievedLolliPopPubKeys>;
+) => TE.TaskEither<InternalError, RetrievedLolliPopPubKeys>;
 
 export type AssertionWriter = (
   assertionFileName: AssertionFileName,

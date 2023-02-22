@@ -3,9 +3,9 @@ import * as t from "io-ts";
 import * as jose from "jose";
 import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
-import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 
 export const retrievedValidPopDocument = t.intersection([
