@@ -16,6 +16,16 @@ import {
   ResponseSuccessJson
 } from "@pagopa/ts-commons/lib/responses";
 import * as express from "express";
+import { pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/lib/TaskEither";
+import { toCosmosErrorResponse } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
+import * as jose from "jose";
+import {
+  JwkPublicKey,
+  JwkPublicKeyFromToken
+} from "@pagopa/ts-commons/lib/jwk";
+import { BlobService } from "azure-storage";
+import { readableReport } from "@pagopa/ts-commons/lib/reporters";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
@@ -25,33 +35,17 @@ import {
   getPopDocumentWriter,
   PopDocumentWriter
 } from "../utils/writers";
-import { pipe } from "fp-ts/lib/function";
-import * as TE from "fp-ts/lib/TaskEither";
-import * as J from "fp-ts/Json";
 import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
-import { toCosmosErrorResponse } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
 import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionRefSha256";
-import * as jose from "jose";
 import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionRefSha384";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
-  JwkPublicKey,
-  JwkPublicKeyFromToken
-} from "@pagopa/ts-commons/lib/jwk";
-import {
   AssertionFileName,
   LolliPOPKeysModel,
-  TTL_VALUE_AFTER_UPDATE,
-  ValidLolliPopPubKeys
+  TTL_VALUE_AFTER_UPDATE
 } from "../model/lollipop_keys";
-import { BlobService } from "azure-storage";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
-import { readableReport } from "@pagopa/ts-commons/lib/reporters";
-import {
-  retrievedLollipopKeysToApiActivatedPubKey,
-  retrievedLollipopKeysToApiLollipopKeys,
-  RetrievedValidPopDocument
-} from "../utils/lollipop_keys_utils";
+import { retrievedLollipopKeysToApiActivatedPubKey } from "../utils/lollipop_keys_utils";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -120,17 +114,19 @@ export const ActivatePubKeyHandler = (
     TE.chain(assertionFileName =>
       pipe(
         AssertionWriter(assertionFileName, body.assertion),
-        TE.mapLeft(_ => ResponseErrorInternal("storeAssertion failed")),
+        TE.mapLeft(error =>
+          ResponseErrorInternal(`storeAssertion failed | ${error.detail}`)
+        ),
         TE.chainW(() =>
           pipe(
             PopDocumentReader(assertion_ref),
             TE.mapLeft(error =>
-              ResponseErrorInternal(toCosmosErrorResponse(error).kind)
+              ResponseErrorInternal(`PopDocument read failed | ${error.kind}`)
             ),
             // retrieve pubkey here (JWK ENCODED)
             TE.chain(({ pubKey }) =>
               pipe(
-                //Write predefined user assertion_ref
+                // Write predefined user assertion_ref
                 PopDocumentWriter({
                   pubKey,
                   assertionFileName,
@@ -142,7 +138,9 @@ export const ActivatePubKeyHandler = (
                   ttl: TTL_VALUE_AFTER_UPDATE
                 }),
                 TE.mapLeft(error =>
-                  ResponseErrorInternal(toCosmosErrorResponse(error).kind)
+                  ResponseErrorInternal(
+                    `upsert popDocument failed | ${error.kind}`
+                  )
                 ),
                 // if prefix wasn't sha512 we write a
                 // popDocument with a masterkey generated
@@ -209,11 +207,7 @@ export const ActivatePubKeyHandler = (
                               retrievedLollipopKeysToApiActivatedPubKey(res)
                             )
                           ),
-                          TE.mapLeft(error =>
-                            ResponseErrorInternal(
-                              toCosmosErrorResponse(error).kind
-                            )
-                          )
+                          TE.mapLeft(error => ResponseErrorInternal(error.kind))
                         );
                       }
                     )

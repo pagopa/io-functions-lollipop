@@ -1,8 +1,8 @@
-import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
-import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
 import * as t from "io-ts";
 import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
+import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 
 export const retrievedValidPopDocument = t.intersection([
   ValidLolliPopPubKeys,

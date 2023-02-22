@@ -2,13 +2,13 @@ import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as E from "fp-ts/lib/Either";
 import { upsertBlobFromObject } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
+import { BlobService } from "azure-storage";
 import {
   AssertionFileName,
   LolliPOPKeysModel,
   NewLolliPopPubKeys,
   RetrievedLolliPopPubKeys
 } from "../model/lollipop_keys";
-import { BlobService } from "azure-storage";
 import {
   cosmosErrorsToString,
   DomainError,
@@ -28,23 +28,22 @@ export type AssertionWriter = (
   assertion: string
 ) => TE.TaskEither<InternalError, true>;
 
-//IMPLEMENTATION
+// IMPLEMENTATION
 export const getPopDocumentWriter = (
   lollipopKeysModel: LolliPOPKeysModel
-): PopDocumentWriter => item => {
-  return pipe(
+): PopDocumentWriter => item =>
+  pipe(
     lollipopKeysModel.upsert(item),
     TE.mapLeft(error => ({
       kind: ErrorKind.Internal as const,
       detail: cosmosErrorsToString(error)
     }))
   );
-};
 
 export const getAssertionWriter = (
   assertionBlobService: BlobService
-): AssertionWriter => (assertionFileName, assertion) => {
-  return pipe(
+): AssertionWriter => (assertionFileName, assertion) =>
+  pipe(
     TE.tryCatch(
       () =>
         upsertBlobFromObject(
@@ -69,4 +68,3 @@ export const getAssertionWriter = (
     ),
     TE.map(_ => true)
   );
-};
