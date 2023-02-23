@@ -34,6 +34,7 @@ import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
   AssertionFileName,
+  LolliPOPKeysModel,
   TTL_VALUE_AFTER_UPDATE
 } from "../model/lollipop_keys";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
@@ -43,6 +44,7 @@ import {
 } from "../utils/lollipop_keys_utils";
 import { getAllAssertionsRef } from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/domain_errors";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -83,7 +85,11 @@ export const ActivatePubKeyHandler = (
         ),
         TE.bind("assertionRefs", () =>
           pipe(
-            getAllAssertionsRef(JwkPubKeyHashAlgorithmEnum.sha512, popDocument),
+            getAllAssertionsRef(
+              JwkPubKeyHashAlgorithmEnum.sha512,
+              popDocument.assertionRef,
+              popDocument.pubKey
+            ),
             TE.mapLeft((error: Error) => ResponseErrorInternal(error.message))
           )
         ),

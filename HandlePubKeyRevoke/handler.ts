@@ -38,7 +38,11 @@ const extractPubKeysToRevoke = (
   notPendingLollipopPubKeys: NotPendingLolliPopPubKeys
 ): TE.TaskEither<Failure, ReadonlyArray<NotPendingLolliPopPubKeys>> =>
   pipe(
-    getAllAssertionsRef(masterAlgo, notPendingLollipopPubKeys),
+    getAllAssertionsRef(
+      masterAlgo,
+      notPendingLollipopPubKeys.assertionRef,
+      notPendingLollipopPubKeys.pubKey
+    ),
     TE.mapLeft(e => toPermanentFailure(e)()),
     TE.chain(({ master, used }) =>
       pipe(
@@ -98,8 +102,10 @@ export const handleRevoke = (
         lollipopKeysModel.findLastVersionByModelId([
           revokeAssertionRefInfo.assertion_ref
         ]),
-        TE.mapLeft(_ =>
-          toTransientFailure(Error("Cannot perform find on CosmosDB"))()
+        TE.mapLeft(err =>
+          toTransientFailure(
+            Error(`Cannot perform find on CosmosDB: ${JSON.stringify(err)}`)
+          )()
         ),
         TE.map(O.chainEitherK(NotPendingLolliPopPubKeys.decode)),
         TE.chain(
@@ -116,9 +122,11 @@ export const handleRevoke = (
                     })
                   ),
                   RA.sequence(TE.ApplicativeSeq),
-                  TE.mapLeft(_ =>
+                  TE.mapLeft(err =>
                     toTransientFailure(
-                      Error("Cannot perform upsert CosmosDB")
+                      Error(
+                        `Cannot perform upsert CosmosDB: ${JSON.stringify(err)}`
+                      )
                     )()
                   )
                 )

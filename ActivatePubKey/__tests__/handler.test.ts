@@ -1,377 +1,138 @@
+import * as TE from "fp-ts/lib/TaskEither";
+import * as O from "fp-ts/lib/Option";
+import * as E from "fp-ts/lib/Either";
+import {
+  AssertionFileName,
+  LolliPOPKeysModel,
+  RetrievedLolliPopPubKeys,
+  TTL_VALUE_AFTER_UPDATE
+} from "../../model/lollipop_keys";
+import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
+import { FiscalCode, NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { AssertionTypeEnum } from "@pagopa/io-functions-commons/dist/generated/definitions/lollipop/AssertionType";
+import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
+import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
+import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
+import { ActivatePubKeyHandler } from "../handler";
+import { BlobService } from "azure-storage";
+import { getPopDocumentReader } from "../../utils/readers";
+import { getAssertionWriter, getPopDocumentWriter } from "../../utils/writers";
+import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
+import { retrievedLollipopKeysToApiActivatedPubKey } from "../../utils/lollipop_keys_utils";
+import * as fn_commons from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
 import * as jose from "jose";
 
-import * as TE from "fp-ts/TaskEither";
+const aFiscalCode = "SPNDNL80A13Y555X" as FiscalCode;
 
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+const aSha256AssertionRef = "sha256-jRW8AFXvVzqDCmH64b64dWogeGAS9ZMIaI2--1-oaBo" as AssertionRef;
+const aSha384AssertionRef = "sha384-zCwmHNNQ-I79Ulo7N2YqVmwCRhOjCHLX6Wh7ex-GPua_wJyeIUlo74RwpeyctSIQ" as AssertionRef;
+const aSha512AssertionRef = "sha512-GWle_6LVmGOw2ViVkYxacREmniT7mVHRbvLsX6OqqhDU9TBuej3Qxgbmcnh9cr2K_INXIVtoVBGG-6amMneQfg" as AssertionRef;
 
-import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
-import { AssertionTypeEnum } from "../../generated/definitions/internal/AssertionType";
-
-import { ErrorKind } from "../../utils/domain_errors";
-import { PopDocumentReader } from "../../utils/readers";
-import { AssertionWriter, PopDocumentWriter } from "../../utils/writers";
-import { NewLolliPopPubKeys } from "../../model/lollipop_keys";
-
-import { ActivatePubKeyHandler } from "../handler";
-
-import {
-  aValidSha256AssertionRef,
-  aRetrievedPendingLollipopPubKeySha256,
-  aFiscalCode,
-  toEncodedJwk,
-  aValidJwk,
-  aValidSha512AssertionRef,
-  aRetrievedPendingLollipopPubKeySha512
-} from "../../__mocks__/lollipopPubKey.mock";
-import { contextMock } from "../../__mocks__/context.mock";
-import { ResponseSuccessJson } from "@pagopa/ts-commons/lib/responses";
-import { Timestamp } from "../../generated/definitions/internal/Timestamp";
-import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
-import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
-
-const popDocumentReaderMock = jest.fn(
-  (assertionRef: AssertionRef) =>
-    TE.of({
-      ...aRetrievedPendingLollipopPubKeySha256,
-      assertionRef: assertionRef,
-      id: `${assertionRef}-000000`,
-      version: 0
-    }) as ReturnType<PopDocumentReader>
-);
-
-const popDocumentWriterMock = jest.fn(
-  (item: NewLolliPopPubKeys) =>
-    TE.of({
-      ...aRetrievedPendingLollipopPubKeySha256,
-      ...item,
-      id: `${item.assertionRef}-000001`,
-      version: 1
-    }) as ReturnType<PopDocumentWriter>
-);
-const assertionWriterMock = jest.fn(
-  () => TE.of(true) as ReturnType<AssertionWriter>
-);
-
-const masterAlgo = "sha512";
-
-var expiresAtDate = new Date(); // Now
-expiresAtDate.setDate(expiresAtDate.getDate() + 30); // Set now + 30 days as the new date
-
-const aValidPayload: ActivatePubKeyPayload = {
-  fiscal_code: aFiscalCode,
-  assertion: "an assertion" as NonEmptyString,
-  assertion_type: AssertionTypeEnum.SAML,
-  expires_at: expiresAtDate
+const anInvalidJwk: JwkPublicKey = {
+  alg: "",
+  e: "e",
+  kty: "RSA",
+  n: "n"
+};
+const aValidJwk: JwkPublicKey = {
+  kty: "EC",
+  crv: "P-256",
+  x: "SVqB4JcUD6lsfvqMr-OKUNUphdNn64Eay60978ZlL74",
+  y: "lf0u0pMj4lGAzZix5u4Cm5CMQIgMNpkwy163wtKYVKI"
 };
 
-describe("ActivatePubKey - Success", () => {
+const toEncodedJwk = (jwk: JwkPublicKey) =>
+  jose.base64url.encode(JSON.stringify(jwk)) as NonEmptyString;
+
+const aValidRetrievedPopDocument: RetrievedLolliPopPubKeys = {
+  pubKey: toEncodedJwk(aValidJwk),
+  ttl: TTL_VALUE_AFTER_UPDATE,
+  assertionType: AssertionTypeEnum.SAML,
+  assertionRef: aSha256AssertionRef,
+  assertionFileName: `${aFiscalCode}-${aSha256AssertionRef}` as AssertionFileName,
+  status: PubKeyStatusEnum.VALID,
+  fiscalCode: aFiscalCode,
+  expiredAt: new Date(),
+  id: "1" as NonEmptyString,
+  version: 0 as NonNegativeInteger,
+  _etag: "",
+  _rid: "",
+  _self: "",
+  _ts: 0
+};
+
+const aPendingRetrievedPopDocument: RetrievedLolliPopPubKeys = {
+  ...aValidRetrievedPopDocument,
+  status: PubKeyStatusEnum.PENDING
+};
+
+const upsertBlobFromObjectMock = jest.spyOn(fn_commons, "upsertBlobFromObject");
+
+const findLastVersionByModelIdMock = jest
+  .fn()
+  .mockImplementation(() => TE.of(O.some({})));
+
+const upsertMock = jest.fn().mockImplementation(() => TE.of({}));
+
+const lollipopPubKeysModelMock = ({
+  findLastVersionByModelId: findLastVersionByModelIdMock,
+  upsert: upsertMock
+} as unknown) as LolliPOPKeysModel;
+
+const blobServiceMock = {} as BlobService;
+
+const contextMock = {} as any;
+
+describe("activatePubKey handler", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("should return the ActivatedPubKey object when assertion_ref is sha256", async () => {
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
-    );
-
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`,
-      assertionRef: aValidSha256AssertionRef,
-      assertionType: AssertionTypeEnum.SAML,
-      expiredAt: expiresAtDate,
-      fiscalCode: aFiscalCode,
-      pubKey: aRetrievedPendingLollipopPubKeySha256.pubKey,
-      status: PubKeyStatusEnum.VALID
-    };
-
-    const expectedSha512Thumbprint = await jose.calculateJwkThumbprint(
-      aValidJwk,
-      masterAlgo
-    );
-
-    expect(res).toMatchObject({
-      kind: "IResponseSuccessJson",
-      value: {
-        assertion_file_name: expectedResult.assertionFileName,
-        assertion_ref: expectedResult.assertionRef,
-        assertion_type: expectedResult.assertionType,
-        expires_at: expectedResult.expiredAt,
-        fiscal_code: expectedResult.fiscalCode,
-        pub_key: expectedResult.pubKey,
-        status: expectedResult.status,
-        version: 1
-      }
-    });
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
-    );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).toHaveBeenCalledTimes(2);
-    expect(popDocumentWriterMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        ...expectedResult,
-        assertionRef: `sha512-${expectedSha512Thumbprint}`
-      })
-    );
-    expect(popDocumentWriterMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        ...expectedResult
-      })
-    );
-  });
-
-  it("should return the ActivatedPubKey object when assertion_ref is sha512", async () => {
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha512AssertionRef,
-      aValidPayload
-    );
-
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`,
-      assertionRef: aValidSha512AssertionRef,
-      assertionType: AssertionTypeEnum.SAML,
-      expiredAt: expiresAtDate,
-      fiscalCode: aFiscalCode,
-      pubKey: aRetrievedPendingLollipopPubKeySha512.pubKey,
-      status: PubKeyStatusEnum.VALID
-    };
-
-    expect(res).toMatchObject({
-      kind: "IResponseSuccessJson",
-      value: {
-        assertion_file_name: expectedResult.assertionFileName,
-        assertion_ref: expectedResult.assertionRef,
-        assertion_type: expectedResult.assertionType,
-        expires_at: expectedResult.expiredAt,
-        fiscal_code: expectedResult.fiscalCode,
-        pub_key: expectedResult.pubKey,
-        status: expectedResult.status,
-        version: 1
-      }
-    });
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha512AssertionRef
-    );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).toHaveBeenCalledTimes(1);
-
-    expect(popDocumentWriterMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        ...expectedResult
-      })
-    );
-  });
-});
-
-describe("ActivatePubKey - Errors", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("should return 404 NotFound when assertionRef doen not exists", async () => {
-    popDocumentReaderMock.mockImplementationOnce(() =>
-      TE.left({ kind: ErrorKind.NotFound })
-    );
-
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
-    );
-
-    expect(res).toMatchObject({
-      kind: "IResponseErrorNotFound",
-      detail: "NotFound: Could not find requested resource"
-    });
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
-    );
-    expect(assertionWriterMock).not.toHaveBeenCalled();
-    expect(popDocumentWriterMock).not.toHaveBeenCalled();
-  });
-
-  it("should return 500 Internal Error when an error occurred reading document", async () => {
-    popDocumentReaderMock.mockImplementationOnce(() =>
-      TE.left({ kind: ErrorKind.Internal, detail: "an Error" })
-    );
-
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
-    );
-
-    expect(res).toMatchObject({
-      kind: "IResponseErrorInternal",
-      detail: "Internal server error: an Error"
-    });
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
-    );
-    expect(assertionWriterMock).not.toHaveBeenCalled();
-    expect(popDocumentWriterMock).not.toHaveBeenCalled();
-  });
-
-  it("should return 500 Internal Error when an error occurred writing assertion into storage", async () => {
-    assertionWriterMock.mockImplementationOnce(() =>
-      TE.left({ kind: ErrorKind.Internal, detail: "an Error on storage" })
-    );
-
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
-    );
-
-    expect(res).toMatchObject({
-      kind: "IResponseErrorInternal",
-      detail: "Internal server error: an Error on storage"
-    });
-
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`
-    };
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
-    );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).not.toHaveBeenCalled();
-  });
-
-  it("should return 500 Internal Error when an error occurred storing master key", async () => {
-    popDocumentWriterMock.mockImplementationOnce(() =>
-      TE.left({ kind: ErrorKind.Internal, detail: "an Error on cosmos update" })
-    );
-
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
-    );
-
-    expect(res).toMatchObject({
-      kind: "IResponseErrorInternal",
-      detail: "Internal server error: an Error on cosmos update"
-    });
-
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`
-    };
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
-    );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("should return 500 Internal Error when an error occurred storing used key", async () => {
-    popDocumentWriterMock
-      // First insert OK
-      .mockImplementationOnce(
-        (item: NewLolliPopPubKeys) =>
-          TE.of({
-            ...aRetrievedPendingLollipopPubKeySha256,
-            ...item,
-            id: `${item.assertionRef}-000001`,
-            version: 1
-          }) as ReturnType<PopDocumentWriter>
+  it("GIVEN valid informations WHEN the handler is called THEN it should return with success", async () => {
+    upsertBlobFromObjectMock.mockImplementationOnce(() =>
+      Promise.resolve(
+        E.right(O.fromNullable({ name: "blob" } as BlobService.BlobResult))
       )
-      // Second insert KO
-      .mockImplementationOnce(() =>
-        TE.left({
-          kind: ErrorKind.Internal,
-          detail: "an Error on cosmos update"
-        })
-      );
-
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
     );
 
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
+    findLastVersionByModelIdMock.mockImplementationOnce(() =>
+      TE.right(O.some(aPendingRetrievedPopDocument))
     );
 
-    expect(res).toMatchObject({
-      kind: "IResponseErrorInternal",
-      detail: "Internal server error: an Error on cosmos update"
+    upsertMock.mockImplementationOnce(() => {
+      return TE.right(aValidRetrievedPopDocument);
     });
 
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`
+    upsertMock.mockImplementationOnce(() => {
+      return TE.right(aValidRetrievedPopDocument);
+    });
+
+    const activatePubKeyHandler = ActivatePubKeyHandler(
+      getPopDocumentReader(lollipopPubKeysModelMock),
+      getPopDocumentWriter(lollipopPubKeysModelMock),
+      getAssertionWriter(blobServiceMock, "assertions" as NonEmptyString)
+    );
+
+    const aValidActivatePubKeyPayload: ActivatePubKeyPayload = {
+      fiscal_code: aFiscalCode,
+      expires_at: new Date(),
+      assertion_type: AssertionTypeEnum.SAML,
+      assertion: "" as NonEmptyString
     };
 
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
+    const res = await activatePubKeyHandler(
+      contextMock,
+      aSha256AssertionRef,
+      aValidActivatePubKeyPayload
     );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).toHaveBeenCalledTimes(2);
+
+    expect(findLastVersionByModelIdMock).toHaveBeenCalledTimes(1);
+    expect(upsertMock).toHaveBeenCalledTimes(2);
+    expect(res.kind).toBe("IResponseSuccessJson");
+    if (res.kind === "IResponseSuccessJson") {
+      expect(res.value).toEqual(
+        retrievedLollipopKeysToApiActivatedPubKey(aValidRetrievedPopDocument)
+      );
+    }
   });
 });

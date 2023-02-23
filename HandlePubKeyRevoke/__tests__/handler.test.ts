@@ -36,17 +36,18 @@ const aValidRevokeInput: RevokeAssertionRefInfo = {
   assertion_ref: aValidAssertionRef
 };
 
-const anInvalidJwk: JwkPublicKey = {
-  alg: "",
-  e: "e",
-  kty: "RSA",
-  n: "n"
-};
 const aValidJwk: JwkPublicKey = {
   kty: "EC",
   crv: "P-256",
   x: "SVqB4JcUD6lsfvqMr-OKUNUphdNn64Eay60978ZlL74",
   y: "lf0u0pMj4lGAzZix5u4Cm5CMQIgMNpkwy163wtKYVKI"
+};
+
+const anInvalidJwk: JwkPublicKey = {
+  alg: "",
+  e: "e",
+  kty: "RSA",
+  n: ""
 };
 const toEncodedJwk = (jwk: JwkPublicKey) =>
   jose.base64url.encode(JSON.stringify(jwk)) as NonEmptyString;
@@ -254,14 +255,19 @@ describe("handleRevoke", () => {
 
   it("GIVEN a valid revoke message that does not match master key WHEN master key's thumbprint generation fails THEN it should return a Permanent Failure", async () => {
     findLastVersionByModelIdMock.mockImplementationOnce(() =>
-      TE.right(O.some(aNotPendingLollipopPubKey))
+      TE.right(
+        O.some({
+          ...aNotPendingLollipopPubKey,
+          pubKey: toEncodedJwk(anInvalidJwk)
+        })
+      )
     );
 
     const result = await handleRevoke(
       contextMock,
       mockAppinsights as any,
       lollipopKeysModelMock,
-      "invalid" as any,
+      masterAlgo,
       aValidRevokeInput
     );
 

@@ -3,6 +3,7 @@ import * as TE from "fp-ts/lib/TaskEither";
 import * as E from "fp-ts/lib/Either";
 import { upsertBlobFromObject } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
 import { BlobService } from "azure-storage";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import {
   AssertionFileName,
   LolliPOPKeysModel,
@@ -14,7 +15,6 @@ import {
   ErrorKind,
   InternalError
 } from "./domain_errors";
-import { IConfig } from "./config";
 
 export type PopDocumentWriter = (
   item: NewLolliPopPubKeys
@@ -39,14 +39,14 @@ export const getPopDocumentWriter = (
 
 export const getAssertionWriter = (
   assertionBlobService: BlobService,
-  { LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME }: IConfig
+  lollipopAssertionStorageContainerName: NonEmptyString
 ): AssertionWriter => (assertionFileName, assertion) =>
   pipe(
     TE.tryCatch(
       () =>
         upsertBlobFromObject(
           assertionBlobService,
-          LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
+          lollipopAssertionStorageContainerName,
           assertionFileName,
           assertion
         ),

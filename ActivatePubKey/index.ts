@@ -34,7 +34,10 @@ app.put(
   ActivatePubKey(
     getPopDocumentReader(lollipopKeysModel),
     getPopDocumentWriter(lollipopKeysModel),
-    getAssertionWriter(assertionBlobService, config)
+    getAssertionWriter(
+      assertionBlobService,
+      config.LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+    )
   )
 );
 
