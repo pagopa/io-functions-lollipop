@@ -28,14 +28,10 @@ import {
   COSMOSDB_URI,
   COSMOSDB_KEY,
   COSMOSDB_NAME,
-  QueueStorageConnection,
-  LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING
+  QueueStorageConnection
 } from "../env";
-import { createBlobs, createQueues } from "../__mocks__/utils/azure_storage";
-import {
-  PubKeyStatus,
-  PubKeyStatusEnum
-} from "../../generated/definitions/internal/PubKeyStatus";
+import { createBlobs } from "../__mocks__/utils/azure_storage";
+import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import {
   aFiscalCode,
   aValidJwk,
