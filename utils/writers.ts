@@ -14,9 +14,7 @@ import {
   ErrorKind,
   InternalError
 } from "./domain_errors";
-import { getConfigOrThrow } from "./config";
-
-const config = getConfigOrThrow();
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 
 export type PopDocumentWriter = (
   item: NewLolliPopPubKeys
@@ -40,14 +38,15 @@ export const getPopDocumentWriter = (
   );
 
 export const getAssertionWriter = (
-  assertionBlobService: BlobService
+  assertionBlobService: BlobService,
+  lollipopAssertionStorageContainerName: NonEmptyString
 ): AssertionWriter => (assertionFileName, assertion) =>
   pipe(
     TE.tryCatch(
       () =>
         upsertBlobFromObject(
           assertionBlobService,
-          config.LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
+          lollipopAssertionStorageContainerName,
           assertionFileName,
           assertion
         ),

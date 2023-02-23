@@ -44,6 +44,7 @@ import {
 } from "../utils/lollipop_keys_utils";
 import { getAllAssertionsRef } from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/domain_errors";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -84,7 +85,11 @@ export const ActivatePubKeyHandler = (
         ),
         TE.bind("assertionRefs", () =>
           pipe(
-            getAllAssertionsRef(JwkPubKeyHashAlgorithmEnum.sha512, popDocument),
+            getAllAssertionsRef(
+              JwkPubKeyHashAlgorithmEnum.sha512,
+              popDocument.assertionRef,
+              popDocument.pubKey
+            ),
             TE.mapLeft((error: Error) => ResponseErrorInternal(error.message))
           )
         ),
@@ -161,12 +166,16 @@ export const ActivatePubKeyHandler = (
 
 export const ActivatePubKey = (
   lollipopKeysModel: LolliPOPKeysModel,
-  assertionBlobService: BlobService
+  assertionBlobService: BlobService,
+  lollipopAssertionStorageContainerName: NonEmptyString
 ): express.RequestHandler => {
   const handler = ActivatePubKeyHandler(
     getPopDocumentReader(lollipopKeysModel),
     getPopDocumentWriter(lollipopKeysModel),
-    getAssertionWriter(assertionBlobService)
+    getAssertionWriter(
+      assertionBlobService,
+      lollipopAssertionStorageContainerName
+    )
   );
 
   const middlewaresWrap = withRequestMiddlewares(

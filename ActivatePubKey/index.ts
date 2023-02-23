@@ -28,8 +28,12 @@ const assertionBlobService = createBlobService(
 
 // Add express route
 app.put(
-  "/pubKeys/:assertion_ref",
-  ActivatePubKey(lollipopKeysModel, assertionBlobService)
+  "/api/v1/pubKeys/:assertion_ref",
+  ActivatePubKey(
+    lollipopKeysModel,
+    assertionBlobService,
+    config.LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+  )
 );
 
 const azureFunctionHandler = createAzureFunctionHandler(app);
