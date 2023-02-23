@@ -7,10 +7,8 @@ import {
   RetrievedLolliPopPubKeys,
   TTL_VALUE_AFTER_UPDATE
 } from "../../model/lollipop_keys";
-import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import { FiscalCode, NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { AssertionTypeEnum } from "@pagopa/io-functions-commons/dist/generated/definitions/lollipop/AssertionType";
-import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
 import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 import { ActivatePubKeyHandler } from "../handler";
@@ -21,40 +19,25 @@ import { ActivatePubKeyPayload } from "../../generated/definitions/internal/Acti
 import {
   retrievedLollipopKeysToApiActivatedPubKey,
   RetrievedValidPopDocument
-} from "../../utils/lollipop_keys_utils";
+} from "../../utils/lollipopKeys";
 import * as fn_commons from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
-import * as jose from "jose";
 import { getAllAssertionsRef } from "../../utils/lollipopKeys";
 import { JwkPubKeyHashAlgorithmEnum } from "../../generated/definitions/internal/JwkPubKeyHashAlgorithm";
+import {
+  aValidJwk,
+  aValidSha256AssertionRef,
+  aValidSha512AssertionRef,
+  toEncodedJwk
+} from "../../__mocks__/lollipopPubKey.mock";
 
 const aFiscalCode = "SPNDNL80A13Y555X" as FiscalCode;
-
-const aSha256AssertionRef = "sha256-jRW8AFXvVzqDCmH64b64dWogeGAS9ZMIaI2--1-oaBo" as AssertionRef;
-const aSha384AssertionRef = "sha384-zCwmHNNQ-I79Ulo7N2YqVmwCRhOjCHLX6Wh7ex-GPua_wJyeIUlo74RwpeyctSIQ" as AssertionRef;
-const aSha512AssertionRef = "sha512-GWle_6LVmGOw2ViVkYxacREmniT7mVHRbvLsX6OqqhDU9TBuej3Qxgbmcnh9cr2K_INXIVtoVBGG-6amMneQfg" as AssertionRef;
-
-const anInvalidJwk: JwkPublicKey = {
-  alg: "",
-  e: "e",
-  kty: "RSA",
-  n: "n"
-};
-const aValidJwk: JwkPublicKey = {
-  kty: "EC",
-  crv: "P-256",
-  x: "SVqB4JcUD6lsfvqMr-OKUNUphdNn64Eay60978ZlL74",
-  y: "lf0u0pMj4lGAzZix5u4Cm5CMQIgMNpkwy163wtKYVKI"
-};
-
-const toEncodedJwk = (jwk: JwkPublicKey) =>
-  jose.base64url.encode(JSON.stringify(jwk)) as NonEmptyString;
 
 const aValidRetrievedPopDocument: RetrievedLolliPopPubKeys = {
   pubKey: toEncodedJwk(aValidJwk),
   ttl: TTL_VALUE_AFTER_UPDATE,
   assertionType: AssertionTypeEnum.SAML,
-  assertionRef: aSha256AssertionRef,
-  assertionFileName: `${aFiscalCode}-${aSha256AssertionRef}` as AssertionFileName,
+  assertionRef: aValidSha256AssertionRef,
+  assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}` as AssertionFileName,
   status: PubKeyStatusEnum.VALID,
   fiscalCode: aFiscalCode,
   expiredAt: new Date(),
@@ -73,16 +56,16 @@ const aPendingRetrievedPopDocument: RetrievedLolliPopPubKeys = {
 
 const aValidRetrievedPopDocumentWithMasterAlgo = {
   ...aValidRetrievedPopDocument,
-  assertionRef: aSha512AssertionRef,
-  assertionFileName: `${aFiscalCode}-${aSha512AssertionRef}`
+  assertionRef: aValidSha512AssertionRef,
+  assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`
 } as RetrievedValidPopDocument;
 
 const aPendingRetrievedPopDocumentWithMasterAlgo = {
   ...aPendingRetrievedPopDocument,
   // to let this document match the master we must change the assertionRef
   // to a sha512 one
-  assertionRef: aSha512AssertionRef,
-  assertionFileName: `${aFiscalCode}-${aSha512AssertionRef}`
+  assertionRef: aValidSha512AssertionRef,
+  assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`
 };
 
 const upsertBlobFromObjectMock = jest.spyOn(fn_commons, "upsertBlobFromObject");
@@ -146,27 +129,27 @@ describe("activatePubKey handler", () => {
 
     const assertionRefsResult = await getAllAssertionsRef(
       JwkPubKeyHashAlgorithmEnum.sha512,
-      aSha256AssertionRef,
-      aPendingRetrievedPopDocument.pubKey
+      JwkPubKeyHashAlgorithmEnum.sha256,
+      aValidJwk
     )();
 
     if (assertionRefsResult._tag === "Left") fail();
 
     const res = await activatePubKeyHandler(
       contextMock,
-      aSha256AssertionRef,
+      aValidSha256AssertionRef,
       aValidActivatePubKeyPayload
     );
 
     expect(findLastVersionByModelIdMock).toHaveBeenCalledTimes(1);
     expect(findLastVersionByModelIdMock).toHaveBeenCalledWith([
-      aSha256AssertionRef
+      aValidSha256AssertionRef
     ]);
     expect(upsertBlobFromObjectMock).toHaveBeenCalledTimes(1);
     expect(upsertBlobFromObjectMock).toHaveBeenCalledWith(
       blobServiceMock,
       LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
-      `${aValidActivatePubKeyPayload.fiscal_code}-${aSha256AssertionRef}`,
+      `${aValidActivatePubKeyPayload.fiscal_code}-${aValidSha256AssertionRef}`,
       ""
     );
     expect(upsertMock).toHaveBeenCalledTimes(2);
@@ -175,7 +158,7 @@ describe("activatePubKey handler", () => {
       ttl: TTL_VALUE_AFTER_UPDATE,
       // the assertion Ref for masterKey is created by the getAllAssertionRefs method
       assertionRef: assertionRefsResult.right.master,
-      assertionFileName: `${aFiscalCode}-${aSha256AssertionRef}`,
+      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`,
       status: PubKeyStatusEnum.VALID,
       assertionType: aValidActivatePubKeyPayload.assertion_type,
       fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
@@ -184,8 +167,8 @@ describe("activatePubKey handler", () => {
     expect(upsertMock).toHaveBeenNthCalledWith(2, {
       pubKey: aPendingRetrievedPopDocument.pubKey,
       ttl: TTL_VALUE_AFTER_UPDATE,
-      assertionRef: aSha256AssertionRef,
-      assertionFileName: `${aFiscalCode}-${aSha256AssertionRef}`,
+      assertionRef: aValidSha256AssertionRef,
+      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`,
       status: PubKeyStatusEnum.VALID,
       assertionType: aValidActivatePubKeyPayload.assertion_type,
       fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
@@ -234,27 +217,27 @@ describe("activatePubKey handler", () => {
 
     const assertionRefsResult = await getAllAssertionsRef(
       JwkPubKeyHashAlgorithmEnum.sha512,
-      aSha512AssertionRef,
-      aPendingRetrievedPopDocument.pubKey
+      JwkPubKeyHashAlgorithmEnum.sha512,
+      aValidJwk
     )();
 
     if (assertionRefsResult._tag === "Left") fail();
 
     const res = await activatePubKeyHandler(
       contextMock,
-      aSha512AssertionRef,
+      aValidSha512AssertionRef,
       aValidActivatePubKeyPayload
     );
 
     expect(findLastVersionByModelIdMock).toHaveBeenCalledTimes(1);
     expect(findLastVersionByModelIdMock).toHaveBeenCalledWith([
-      aSha512AssertionRef
+      aValidSha512AssertionRef
     ]);
     expect(upsertBlobFromObjectMock).toHaveBeenCalledTimes(1);
     expect(upsertBlobFromObjectMock).toHaveBeenCalledWith(
       blobServiceMock,
       LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
-      `${aValidActivatePubKeyPayload.fiscal_code}-${aSha512AssertionRef}`,
+      `${aValidActivatePubKeyPayload.fiscal_code}-${aValidSha512AssertionRef}`,
       ""
     );
     expect(upsertMock).toHaveBeenCalledTimes(1);
@@ -263,7 +246,7 @@ describe("activatePubKey handler", () => {
       ttl: TTL_VALUE_AFTER_UPDATE,
       // the assertion Ref for masterKey is created by the getAllAssertionRefs method
       assertionRef: assertionRefsResult.right.master,
-      assertionFileName: `${aFiscalCode}-${aSha512AssertionRef}`,
+      assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`,
       status: PubKeyStatusEnum.VALID,
       assertionType: aValidActivatePubKeyPayload.assertion_type,
       fiscalCode: aValidActivatePubKeyPayload.fiscal_code,

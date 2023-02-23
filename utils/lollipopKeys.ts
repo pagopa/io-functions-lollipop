@@ -15,9 +15,11 @@ import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionR
 import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionRefSha256";
 import { assertNever } from "./errors";
 import { calculateThumbprint } from "./thumbprint";
+import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
+import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
+import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 
 export const MASTER_HASH_ALGO = JwkPubKeyHashAlgorithmEnum.sha512;
-
 export const AssertionRefByType = t.intersection([
   t.type({
     master: AssertionRef
@@ -106,3 +108,26 @@ export const getAllAssertionsRef = (
       )
     )
   );
+
+export const retrievedValidPopDocument = t.intersection([
+  ValidLolliPopPubKeys,
+  Ttl,
+  RetrievedVersionedModelTTL
+]);
+export type RetrievedValidPopDocument = t.TypeOf<
+  typeof retrievedValidPopDocument
+>;
+
+export const retrievedLollipopKeysToApiActivatedPubKey = (
+  popDocument: RetrievedValidPopDocument
+): ActivatedPubKey => ({
+  assertion_file_name: (popDocument.assertionFileName as unknown) as NonEmptyString,
+  assertion_ref: popDocument.assertionRef,
+  assertion_type: popDocument.assertionType,
+  expires_at: popDocument.expiredAt,
+  fiscal_code: popDocument.fiscalCode,
+  pub_key: popDocument.pubKey,
+  status: popDocument.status,
+  ttl: popDocument.ttl,
+  version: popDocument.version
+});
