@@ -1,13 +1,18 @@
 import * as jose from "jose";
 
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
+import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 import { FiscalCode, NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { CosmosResource } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
 
+import { AssertionTypeEnum } from "../generated/definitions/internal/AssertionType";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
 
-import { PendingLolliPopPubKeys } from "../model/lollipop_keys";
+import {
+  AssertionFileName,
+  PendingLolliPopPubKeys
+} from "../model/lollipop_keys";
 
 export const aFiscalCode = "AAAAAA89S20I111X" as FiscalCode;
 
@@ -50,6 +55,18 @@ export const aCosmosResourceMetadata: Omit<CosmosResource, "id"> = {
 export const aRetrievedPendingLollipopPubKeySha256 = {
   ...aCosmosResourceMetadata,
   ...aPendingSh256LollipopPubKey
+};
+
+export const aRetrievedValidLollipopPubKeySha256 = {
+  ...aCosmosResourceMetadata,
+  ...aPendingSh256LollipopPubKey,
+  status: PubKeyStatusEnum.VALID,
+  assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}` as AssertionFileName,
+  assertionType: AssertionTypeEnum.SAML,
+  expiredAt: new Date(),
+  fiscalCode: aFiscalCode,
+  pubKey: toEncodedJwk(aValidJwk),
+  ttl: 900 as NonNegativeInteger
 };
 
 export const aRetrievedPendingLollipopPubKeySha512 = {
