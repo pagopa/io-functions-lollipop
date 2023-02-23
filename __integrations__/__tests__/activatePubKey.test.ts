@@ -6,6 +6,8 @@ import { CosmosClient, Database } from "@azure/cosmos";
 import { createBlobService } from "azure-storage";
 
 import * as TE from "fp-ts/TaskEither";
+import * as E from "fp-ts/Either";
+import * as O from "fp-ts/Option";
 import { pipe } from "fp-ts/lib/function";
 import { getBlobAsTextWithError } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
 import {
@@ -48,7 +50,7 @@ const MAX_ATTEMPT = 50;
 jest.setTimeout(WAIT_MS * MAX_ATTEMPT);
 
 const baseUrl = "http://function:7071";
-const fetch = getNodeFetch();
+const myFetch = getNodeFetch();
 
 const LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME = "assertions";
 
@@ -124,33 +126,35 @@ describe("activatePubKey |> Success Results", () => {
     const response = await fetchActivatePubKey(
       aValidSha256AssertionRef,
       validActivatePubKeyPayload,
-      baseUrl
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
     );
 
-    const assertionBlob = await getBlobAsTextWithError(
-      blobService,
-      LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
-    )(anAssertionFileNameForSha256)();
+    const assertionBlobbb = await pipe(
+      getBlobAsTextWithError(
+        blobService,
+        LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+      )(anAssertionFileNameForSha256),
+      TE.map(O.map(JSON.parse))
+    )();
 
-    expect(assertionBlob).toMatchObject({
-      _tag: "Right",
-      value: validActivatePubKeyPayload.assertion
-    });
+    expect(assertionBlobbb).toEqual(
+      E.right(O.some(validActivatePubKeyPayload.assertion))
+    );
 
     expect(response.status).toEqual(200);
-    expect(response.body).toEqual(
-      expect.objectContaining({
-        fiscal_code: validActivatePubKeyPayload.fiscal_code,
-        expires_at: validActivatePubKeyPayload.expires_at,
-        assertion_type: validActivatePubKeyPayload.assertion_type,
-        assertion_ref: aValidSha256AssertionRef,
-        assertion_file_name: anAssertionFileNameForSha256,
-        pub_key: toEncodedJwk(aValidJwk),
-        status: PubKeyStatusEnum.VALID,
-        ttl: TTL_VALUE_AFTER_UPDATE,
-        version: 1
-      })
-    );
+    const body = await response.json();
+    expect(body).toMatchObject({
+      fiscal_code: validActivatePubKeyPayload.fiscal_code,
+      expires_at: validActivatePubKeyPayload.expires_at.toISOString(),
+      assertion_type: validActivatePubKeyPayload.assertion_type,
+      assertion_ref: aValidSha256AssertionRef,
+      assertion_file_name: anAssertionFileNameForSha256,
+      pub_key: toEncodedJwk(aValidJwk),
+      status: PubKeyStatusEnum.VALID,
+      ttl: TTL_VALUE_AFTER_UPDATE,
+      version: 1
+    });
   });
 });
 
@@ -168,7 +172,7 @@ const waitFunctionToSetup = async (): Promise<void> => {
   while (i < MAX_ATTEMPT) {
     log("Waiting the function to setup..");
     try {
-      await fetch(baseUrl + "/info");
+      await myFetch(baseUrl + "/info");
       break;
     } catch (e) {
       log("Waiting the function to setup..");
