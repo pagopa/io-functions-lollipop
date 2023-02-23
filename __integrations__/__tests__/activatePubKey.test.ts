@@ -38,6 +38,7 @@ import {
   aFiscalCode,
   aValidJwk,
   aValidSha256AssertionRef,
+  aValidSha512AssertionRef,
   toEncodedJwk
 } from "../../__mocks__/lollipopPubKey.mock";
 import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
@@ -102,22 +103,77 @@ const aNewPopDocument: NewLolliPopPubKeys = {
   status: PubKeyStatusEnum.PENDING
 };
 
+const expires = new Date();
+
+const validActivatePubKeyPayload: ActivatePubKeyPayload = {
+  assertion_type: AssertionTypeEnum.SAML,
+  assertion: "aValidAssertion" as NonEmptyString,
+  expires_at: expires,
+  fiscal_code: aFiscalCode
+};
+
 // -------------------------
 // Tests
 // -------------------------
+
+describe("activatePubKey |> Validation Failures", () => {
+  it("should fail when an invalid assertionRef is passed to the endpoint", async () => {
+    const anInvalidAssertionRef = `anInvalidAssertionRef`;
+
+    const response = await fetchActivatePubKey(
+      anInvalidAssertionRef,
+      validActivatePubKeyPayload,
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
+    );
+
+    expect(response.status).toEqual(400);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      status: 400,
+      title: "Invalid AssertionRef"
+    });
+  });
+
+  it("should fail when an invalid payload is passed to the endpoint", async () => {
+    const response = await fetchActivatePubKey(
+      aValidSha256AssertionRef,
+      { ...validActivatePubKeyPayload, fiscal_code: "anInvalidFiscalCode" },
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
+    );
+
+    expect(response.status).toEqual(400);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      status: 400,
+      title: "Invalid ActivatePubKeyPayload"
+    });
+  });
+});
+
+describe("activatePubKey |> Failures", () => {
+  it("should return 404 when document cannot be found in cosmos", async () => {
+    const response = await fetchActivatePubKey(
+      aValidSha256AssertionRef,
+      validActivatePubKeyPayload,
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
+    );
+
+    expect(response.status).toEqual(404);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      status: 404,
+      title: "NotFound"
+    });
+  });
+});
 
 describe("activatePubKey |> Success Results", () => {
   it("should succeed when valid payload is passed to the endpoint AND when algo != master", async () => {
     // TODO: replace with insert call (POST /api/v1/pubKeys)
     const retrieved = await lolliPOPKeysModel.create(aNewPopDocument)();
-    const expires = new Date();
-
-    const validActivatePubKeyPayload: ActivatePubKeyPayload = {
-      assertion_type: AssertionTypeEnum.SAML,
-      assertion: "aValidAssertion" as NonEmptyString,
-      expires_at: expires,
-      fiscal_code: aFiscalCode
-    };
 
     const anAssertionFileNameForSha256 = `${aFiscalCode}-${aValidSha256AssertionRef}`;
 
@@ -128,18 +184,6 @@ describe("activatePubKey |> Success Results", () => {
       validActivatePubKeyPayload,
       baseUrl,
       (myFetch as unknown) as typeof fetch
-    );
-
-    const assertionBlobbb = await pipe(
-      getBlobAsTextWithError(
-        blobService,
-        LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
-      )(anAssertionFileNameForSha256),
-      TE.map(O.map(JSON.parse))
-    )();
-
-    expect(assertionBlobbb).toEqual(
-      E.right(O.some(validActivatePubKeyPayload.assertion))
     );
 
     expect(response.status).toEqual(200);
@@ -155,6 +199,55 @@ describe("activatePubKey |> Success Results", () => {
       ttl: TTL_VALUE_AFTER_UPDATE,
       version: 1
     });
+
+    // Check values on storages
+
+    const assertionBlob = await pipe(
+      getBlobAsTextWithError(
+        blobService,
+        LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+      )(anAssertionFileNameForSha256),
+      TE.map(O.map(JSON.parse))
+    )();
+
+    expect(assertionBlob).toEqual(
+      E.right(O.some(validActivatePubKeyPayload.assertion))
+    );
+
+    // Check used key
+    const sha256Document = await lolliPOPKeysModel.findLastVersionByModelId([
+      aValidSha256AssertionRef
+    ])();
+
+    expect(sha256Document).toEqual(
+      E.right(
+        O.some(
+          expect.objectContaining({
+            assertionRef: aValidSha256AssertionRef,
+            assertionFileName: anAssertionFileNameForSha256,
+            status: PubKeyStatusEnum.VALID
+          })
+        )
+      )
+    );
+
+    // Check master document
+    const masterDocument = await lolliPOPKeysModel.findLastVersionByModelId([
+      aValidSha512AssertionRef
+    ])();
+
+    expect(masterDocument).toEqual(
+      E.right(
+        O.some(
+          expect.objectContaining({
+            assertionRef: aValidSha512AssertionRef,
+            assertionFileName: anAssertionFileNameForSha256,
+            status: PubKeyStatusEnum.VALID,
+            version: 0
+          })
+        )
+      )
+    );
   });
 });
 
