@@ -21,6 +21,8 @@ import { ActivatePubKeyPayload } from "../../generated/definitions/internal/Acti
 import { retrievedLollipopKeysToApiActivatedPubKey } from "../../utils/lollipop_keys_utils";
 import * as fn_commons from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
 import * as jose from "jose";
+import { getAllAssertionsRef } from "../../utils/lollipopKeys";
+import { JwkPubKeyHashAlgorithmEnum } from "../../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 
 const aFiscalCode = "SPNDNL80A13Y555X" as FiscalCode;
 
@@ -83,6 +85,8 @@ const blobServiceMock = {} as BlobService;
 
 const contextMock = {} as any;
 
+const LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME = "assertions" as NonEmptyString;
+
 describe("activatePubKey handler", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -110,7 +114,10 @@ describe("activatePubKey handler", () => {
     const activatePubKeyHandler = ActivatePubKeyHandler(
       getPopDocumentReader(lollipopPubKeysModelMock),
       getPopDocumentWriter(lollipopPubKeysModelMock),
-      getAssertionWriter(blobServiceMock, "assertions" as NonEmptyString)
+      getAssertionWriter(
+        blobServiceMock,
+        LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+      )
     );
 
     const aValidActivatePubKeyPayload: ActivatePubKeyPayload = {
@@ -120,6 +127,14 @@ describe("activatePubKey handler", () => {
       assertion: "" as NonEmptyString
     };
 
+    const assertionRefsResult = await getAllAssertionsRef(
+      JwkPubKeyHashAlgorithmEnum.sha512,
+      aSha256AssertionRef,
+      aPendingRetrievedPopDocument.pubKey
+    )();
+
+    if (assertionRefsResult._tag === "Left") fail();
+
     const res = await activatePubKeyHandler(
       contextMock,
       aSha256AssertionRef,
@@ -127,7 +142,39 @@ describe("activatePubKey handler", () => {
     );
 
     expect(findLastVersionByModelIdMock).toHaveBeenCalledTimes(1);
+    expect(findLastVersionByModelIdMock).toHaveBeenCalledWith([
+      aSha256AssertionRef
+    ]);
+    expect(upsertBlobFromObjectMock).toHaveBeenCalledTimes(1);
+    expect(upsertBlobFromObjectMock).toHaveBeenCalledWith(
+      blobServiceMock,
+      LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
+      `${aValidActivatePubKeyPayload.fiscal_code}-${aSha256AssertionRef}`,
+      ""
+    );
     expect(upsertMock).toHaveBeenCalledTimes(2);
+    expect(upsertMock.mock.calls[0][0]).toEqual({
+      pubKey: aPendingRetrievedPopDocument.pubKey,
+      ttl: TTL_VALUE_AFTER_UPDATE,
+      // the assertion Ref for masterKey is created by the getAllAssertionRefs method
+      assertionRef: assertionRefsResult.right.master,
+      assertionFileName: `${aFiscalCode}-${aSha256AssertionRef}`,
+      status: PubKeyStatusEnum.VALID,
+      assertionType: aValidActivatePubKeyPayload.assertion_type,
+      fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
+      expiredAt: aValidActivatePubKeyPayload.expires_at
+    });
+    expect(upsertMock.mock.calls[1][0]).toEqual({
+      pubKey: aPendingRetrievedPopDocument.pubKey,
+      ttl: TTL_VALUE_AFTER_UPDATE,
+      assertionRef: aSha256AssertionRef,
+      assertionFileName: `${aFiscalCode}-${aSha256AssertionRef}`,
+      status: PubKeyStatusEnum.VALID,
+      assertionType: aValidActivatePubKeyPayload.assertion_type,
+      fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
+      expiredAt: aValidActivatePubKeyPayload.expires_at
+    });
+
     expect(res.kind).toBe("IResponseSuccessJson");
     if (res.kind === "IResponseSuccessJson") {
       expect(res.value).toEqual(
