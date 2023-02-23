@@ -30,7 +30,7 @@ const assertionBlobService = createBlobService(
 
 // Add express route
 app.put(
-  "/pubKeys/:assertion_ref",
+  "/api/v1/pubKeys/:assertion_ref",
   ActivatePubKey(
     getPopDocumentReader(lollipopKeysModel),
     getPopDocumentWriter(lollipopKeysModel),
