@@ -14,6 +14,9 @@ import { CosmosErrors } from "@pagopa/io-functions-commons/dist/src/utils/cosmos
 import { toCosmosErrorResponse } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
 import { Container } from "@azure/cosmos";
 
+export const LOLLIPOP_COSMOSDB_COLLECTION_NAME = "lollipop-pubkeys";
+export const LOLLIPOP_COSMOSDB_PK_FIELD = "assertionRef";
+
 /**
  *
  * @param database
@@ -23,7 +26,13 @@ export const createAllCollections = (
   database: Database
 ): TE.TaskEither<CosmosErrors, readonly Container[]> =>
   pipe(
-    [createCollection(database, "lollipop-pubkeys", "assertionRef")],
+    [
+      createCollection(
+        database,
+        LOLLIPOP_COSMOSDB_COLLECTION_NAME,
+        LOLLIPOP_COSMOSDB_PK_FIELD
+      )
+    ],
     RA.sequence(TE.ApplicativePar)
   );
 

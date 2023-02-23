@@ -7,11 +7,20 @@ import { createBlobService } from "azure-storage";
 
 import * as TE from "fp-ts/TaskEither";
 import { pipe } from "fp-ts/lib/function";
-
-import { createCosmosDbAndCollections } from "../__mocks__/fixtures";
+import { getBlobAsTextWithError } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
+import {
+  createCosmosDbAndCollections,
+  LOLLIPOP_COSMOSDB_COLLECTION_NAME
+} from "../__mocks__/fixtures";
 
 import { getNodeFetch } from "../utils/fetch";
 import { log } from "../utils/logger";
+import {
+  LolliPOPKeysModel,
+  NewLolliPopPubKeys,
+  TTL_VALUE_AFTER_UPDATE,
+  TTL_VALUE_FOR_RESERVATION
+} from "../../model/lollipop_keys";
 
 import {
   WAIT_MS,
@@ -22,8 +31,20 @@ import {
   QueueStorageConnection,
   LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING
 } from "../env";
-import { createQueues } from "../__mocks__/utils/azure_storage";
-import { QueueServiceClient } from "@azure/storage-queue";
+import { createBlobs, createQueues } from "../__mocks__/utils/azure_storage";
+import {
+  PubKeyStatus,
+  PubKeyStatusEnum
+} from "../../generated/definitions/internal/PubKeyStatus";
+import {
+  aFiscalCode,
+  aValidJwk,
+  aValidSha256AssertionRef,
+  toEncodedJwk
+} from "../../__mocks__/lollipopPubKey.mock";
+import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
+import { AssertionTypeEnum } from "../../generated/definitions/internal/AssertionType";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 
 const MAX_ATTEMPT = 50;
 
@@ -31,6 +52,8 @@ jest.setTimeout(WAIT_MS * MAX_ATTEMPT);
 
 const baseUrl = "http://function:7071";
 const fetch = getNodeFetch();
+
+const LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME = "assertions";
 
 // ----------------
 // Setup dbs
@@ -44,10 +67,6 @@ const cosmosClient = new CosmosClient({
   key: COSMOSDB_KEY
 });
 
-const queueClient = QueueServiceClient.fromConnectionString(
-  LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING
-);
-
 // eslint-disable-next-line functional/no-let
 let database: Database;
 
@@ -59,19 +78,12 @@ beforeAll(async () => {
       throw Error("Cannot create infra resources");
     })
   )();
-
   await pipe(
-    TE.fromTask(createQueues(queueClient, ["revoke-queue"])),
+    createBlobs(blobService, [LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME]),
     TE.getOrElse(() => {
-      throw Error("Cannot create queues");
+      throw Error("Cannot create azure storage");
     })
   )();
-  // await pipe(
-  //   createBlobs(blobService, [MESSAGE_CONTAINER_NAME]),
-  //   TE.getOrElse(() => {
-  //     throw Error("Cannot create azure storage");
-  //   })
-  // )();
 
   await waitFunctionToSetup();
 });
@@ -80,13 +92,68 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+const cosmosInstance = cosmosClient.database(COSMOSDB_NAME);
+const container = cosmosInstance.container(LOLLIPOP_COSMOSDB_COLLECTION_NAME);
+const lolliPOPKeysModel = new LolliPOPKeysModel(container);
+
+const aNewPopDocument: NewLolliPopPubKeys = {
+  pubKey: toEncodedJwk(aValidJwk),
+  ttl: TTL_VALUE_FOR_RESERVATION,
+  assertionRef: aValidSha256AssertionRef,
+  status: PubKeyStatusEnum.PENDING
+};
+
 // -------------------------
 // Tests
 // -------------------------
 
 describe("activatePubKey |> Success Results", () => {
-  it("dummy", () => {
-    expect(true).toBe(true);
+  it("should succeed when valid payload is passed to the endpoint AND when algo != master", async () => {
+    // TODO: replace with insert call (POST /api/v1/pubKeys)
+    const retrieved = await lolliPOPKeysModel.create(aNewPopDocument)();
+    const expires = new Date();
+
+    const validActivatePubKeyPayload: ActivatePubKeyPayload = {
+      assertion_type: AssertionTypeEnum.SAML,
+      assertion: "aValidAssertion" as NonEmptyString,
+      expires_at: expires,
+      fiscal_code: aFiscalCode
+    };
+
+    const anAssertionFileNameForSha256 = `${aFiscalCode}-${aValidSha256AssertionRef}`;
+
+    expect(retrieved._tag).toEqual("Right");
+
+    const response = await fetchActivatePubKey(
+      aValidSha256AssertionRef,
+      validActivatePubKeyPayload,
+      baseUrl
+    );
+
+    const assertionBlob = await getBlobAsTextWithError(
+      blobService,
+      LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+    )(anAssertionFileNameForSha256)();
+
+    expect(assertionBlob).toMatchObject({
+      _tag: "Right",
+      value: validActivatePubKeyPayload.assertion
+    });
+
+    expect(response.status).toEqual(200);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        fiscal_code: validActivatePubKeyPayload.fiscal_code,
+        expires_at: validActivatePubKeyPayload.expires_at,
+        assertion_type: validActivatePubKeyPayload.assertion_type,
+        assertion_ref: aValidSha256AssertionRef,
+        assertion_file_name: anAssertionFileNameForSha256,
+        pub_key: toEncodedJwk(aValidJwk),
+        status: PubKeyStatusEnum.VALID,
+        ttl: TTL_VALUE_AFTER_UPDATE,
+        version: 1
+      })
+    );
   });
 });
 
