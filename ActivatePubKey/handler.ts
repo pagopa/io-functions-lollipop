@@ -21,6 +21,7 @@ import * as TE from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/lib/Option";
 import { BlobService } from "azure-storage";
 import { readableReport } from "@pagopa/ts-commons/lib/reporters";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
@@ -44,7 +45,6 @@ import {
 } from "../utils/lollipop_keys_utils";
 import { getAllAssertionsRef } from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/domain_errors";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -59,12 +59,16 @@ type ActivatePubKeyHandler = (
 >;
 
 export const ActivatePubKeyHandler = (
-  PopDocumentReader: PopDocumentReader,
-  PopDocumentWriter: PopDocumentWriter,
-  AssertionWriter: AssertionWriter
-): ActivatePubKeyHandler => (_, assertion_ref, body) => {
-  return pipe(
-    PopDocumentReader(assertion_ref),
+  popDocumentReader: PopDocumentReader,
+  popDocumentWriter: PopDocumentWriter,
+  assertionWriter: AssertionWriter
+): ActivatePubKeyHandler => (
+  _,
+  assertion_ref,
+  body
+): ReturnType<ActivatePubKeyHandler> =>
+  pipe(
+    popDocumentReader(assertion_ref),
     TE.mapLeft(domainErrorToResponseError),
     TE.chainW(popDocument =>
       pipe(
@@ -79,7 +83,7 @@ export const ActivatePubKeyHandler = (
         ),
         TE.chainFirst(({ assertionFileName }) =>
           pipe(
-            AssertionWriter(assertionFileName, body.assertion),
+            assertionWriter(assertionFileName, body.assertion),
             TE.mapLeft(error => ResponseErrorInternal(error.detail))
           )
         ),
@@ -97,15 +101,15 @@ export const ActivatePubKeyHandler = (
           "retrievedPopDocument",
           ({ assertionRefs, assertionFileName }) =>
             pipe(
-              PopDocumentWriter({
-                pubKey: popDocument.pubKey,
-                ttl: TTL_VALUE_AFTER_UPDATE,
-                assertionRef: assertionRefs.master,
+              popDocumentWriter({
                 assertionFileName,
-                status: PubKeyStatusEnum.VALID,
+                assertionRef: assertionRefs.master,
                 assertionType: body.assertion_type,
+                expiredAt: body.expires_at,
                 fiscalCode: body.fiscal_code,
-                expiredAt: body.expires_at
+                pubKey: popDocument.pubKey,
+                status: PubKeyStatusEnum.VALID,
+                ttl: TTL_VALUE_AFTER_UPDATE
               }),
               TE.mapLeft(error => ResponseErrorInternal(error.detail))
             )
@@ -120,15 +124,15 @@ export const ActivatePubKeyHandler = (
                 () => TE.right(void 0),
                 u =>
                   pipe(
-                    PopDocumentWriter({
-                      pubKey: popDocument.pubKey,
-                      ttl: TTL_VALUE_AFTER_UPDATE,
-                      assertionRef: u,
+                    popDocumentWriter({
                       assertionFileName,
-                      status: PubKeyStatusEnum.VALID,
+                      assertionRef: u,
                       assertionType: body.assertion_type,
+                      expiredAt: body.expires_at,
                       fiscalCode: body.fiscal_code,
-                      expiredAt: body.expires_at
+                      pubKey: popDocument.pubKey,
+                      status: PubKeyStatusEnum.VALID,
+                      ttl: TTL_VALUE_AFTER_UPDATE
                     }),
                     TE.mapLeft(error => ResponseErrorInternal(error.detail))
                   )
@@ -162,7 +166,6 @@ export const ActivatePubKeyHandler = (
     ),
     TE.toUnion
   )();
-};
 
 export const ActivatePubKey = (
   lollipopKeysModel: LolliPOPKeysModel,
