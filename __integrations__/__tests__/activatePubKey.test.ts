@@ -41,6 +41,7 @@ import {
 import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
 import { AssertionTypeEnum } from "../../generated/definitions/internal/AssertionType";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { fetchActivatePubKey } from "../utils/client";
 
 const MAX_ATTEMPT = 50;
 

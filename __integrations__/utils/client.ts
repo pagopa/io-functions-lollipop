@@ -1,5 +1,5 @@
-const ACTIVATE_PUB_KEY_PATH = "api/v1/pubkeys";
-const fetchActivatePubKey = (
+export const ACTIVATE_PUB_KEY_PATH = "api/v1/pubkeys";
+export const fetchActivatePubKey = (
   assertionRef: string,
   body: unknown,
   baseUrl: string
