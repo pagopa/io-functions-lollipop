@@ -17,12 +17,14 @@ export type PopDocumentReader = RTE.ReaderTaskEither<
 // IMPLEMENTATIONS
 export const getPopDocumentReader = (
   lollipopKeysModel: LolliPOPKeysModel
-): PopDocumentReader => (assertionRef: AssertionRef) =>
+): PopDocumentReader => (
+  assertionRef: AssertionRef
+): ReturnType<PopDocumentReader> =>
   pipe(
     lollipopKeysModel.findLastVersionByModelId([assertionRef]),
     TE.mapLeft(error => ({
-      kind: ErrorKind.Internal as const,
-      detail: cosmosErrorsToString(error)
+      detail: cosmosErrorsToString(error),
+      kind: ErrorKind.Internal as const
     })),
     TE.chainW(
       flow(TE.fromOption(() => ({ kind: ErrorKind.NotFound as const })))

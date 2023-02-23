@@ -14,11 +14,13 @@ export enum ErrorKind {
   Internal = "Internal"
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface InternalError {
   readonly kind: ErrorKind.Internal;
   readonly detail: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface NotFoundError {
   readonly kind: ErrorKind.NotFound;
 }
