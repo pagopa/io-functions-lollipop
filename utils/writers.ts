@@ -10,11 +10,7 @@ import {
   NewLolliPopPubKeys,
   RetrievedLolliPopPubKeys
 } from "../model/lollipop_keys";
-import {
-  cosmosErrorsToString,
-  ErrorKind,
-  InternalError
-} from "./domain_errors";
+import { cosmosErrorsToString, ErrorKind, InternalError } from "./errors";
 
 export type PopDocumentWriter = (
   item: NewLolliPopPubKeys

@@ -1,7 +1,7 @@
 import { AssertionRef } from "@pagopa/io-functions-commons/dist/generated/definitions/lollipop/AssertionRef";
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import { JwkPubKeyHashAlgorithmEnum } from "../../generated/definitions/internal/JwkPubKeyHashAlgorithm";
-import { getAllAssertionsRef } from "../lollipopKeys";
+import { getAlgoFromAssertionRef, getAllAssertionsRef } from "../lollipopKeys";
 import * as jose from "jose";
 import * as E from "fp-ts/Either";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
@@ -23,31 +23,15 @@ const aValidJwk: JwkPublicKey = {
   y: "lf0u0pMj4lGAzZix5u4Cm5CMQIgMNpkwy163wtKYVKI"
 };
 
+const usedAlgo = JwkPubKeyHashAlgorithmEnum.sha256;
 const masterAlgo = JwkPubKeyHashAlgorithmEnum.sha512;
 
-const toEncodedJwk = (jwk: JwkPublicKey) =>
-  jose.base64url.encode(JSON.stringify(jwk)) as NonEmptyString;
-
 describe("getAllAssertionsRef", () => {
-  it("GIVEN an invalid pubKey WHEN Jwk decode fails THEN it should return an Error", async () => {
+  it("GIVEN a valid pubKey WHEN master key's thumbprint generation fails THEN it should return an Error", async () => {
     const result = await getAllAssertionsRef(
       masterAlgo,
-      aValidAssertionRef,
-      "invalidJWK" as NonEmptyString
-    )();
-    expect(E.isLeft(result)).toBeTruthy();
-    if (E.isLeft(result)) {
-      expect(result.left.message).toEqual(
-        expect.stringContaining("Cannot decode used jwk")
-      );
-    }
-  });
-
-  it("GIVEN a valid assertionRef and pubKey WHEN master key's thumbprint generation fails THEN it should return an Error", async () => {
-    const result = await getAllAssertionsRef(
-      masterAlgo,
-      aValidAssertionRef,
-      toEncodedJwk(anInvalidJwk)
+      usedAlgo,
+      anInvalidJwk
     )();
     expect(E.isLeft(result)).toBeTruthy();
     if (E.isLeft(result)) {
@@ -57,23 +41,11 @@ describe("getAllAssertionsRef", () => {
     }
   });
 
-  it("GIVEN a valid usedAssertionRef and pubKey WHEN masterAlgo match THEN it should return only master assertionRef", async () => {
+  it("GIVEN a valid pubKey WHEN masterAlgo match THEN it should return only master assertionRef", async () => {
     const result = await getAllAssertionsRef(
       masterAlgo,
-      aValidSha512AssertionRef,
-      toEncodedJwk(aValidJwk)
-    )();
-    expect(E.isRight(result)).toBeTruthy();
-    if (E.isRight(result)) {
-      expect(result.right).toEqual({ master: aValidSha512AssertionRef });
-    }
-  });
-
-  it("GIVEN a valid usedAssertionRef and pubKey WHEN masterAlgo does not match THEN it should return master and used assertionsRef", async () => {
-    const result = await getAllAssertionsRef(
       masterAlgo,
-      aValidAssertionRef,
-      toEncodedJwk(aValidJwk)
+      aValidJwk
     )();
 
     const expectedMasterAssertionThumbprint = await jose.calculateJwkThumbprint(
@@ -83,8 +55,27 @@ describe("getAllAssertionsRef", () => {
     expect(E.isRight(result)).toBeTruthy();
     if (E.isRight(result)) {
       expect(result.right).toEqual({
+        master: `${masterAlgo}-${expectedMasterAssertionThumbprint}`
+      });
+    }
+  });
+
+  it("GIVEN a valid pubKey WHEN masterAlgo does not match THEN it should return master and used assertionsRef", async () => {
+    const result = await getAllAssertionsRef(masterAlgo, usedAlgo, aValidJwk)();
+
+    const expectedMasterAssertionThumbprint = await jose.calculateJwkThumbprint(
+      aValidJwk,
+      masterAlgo
+    );
+    const expectedUsedAssertionThumbprint = await jose.calculateJwkThumbprint(
+      aValidJwk,
+      usedAlgo
+    );
+    expect(E.isRight(result)).toBeTruthy();
+    if (E.isRight(result)) {
+      expect(result.right).toEqual({
         master: `${masterAlgo}-${expectedMasterAssertionThumbprint}`,
-        used: aValidAssertionRef
+        used: `${usedAlgo}-${expectedUsedAssertionThumbprint}`
       });
     }
   });

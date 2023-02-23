@@ -19,32 +19,28 @@ import * as express from "express";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/lib/Option";
-import { BlobService } from "azure-storage";
 import { readableReport } from "@pagopa/ts-commons/lib/reporters";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
-import {
-  AssertionWriter,
-  getAssertionWriter,
-  getPopDocumentWriter,
-  PopDocumentWriter
-} from "../utils/writers";
+import { AssertionWriter, PopDocumentWriter } from "../utils/writers";
 import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
   AssertionFileName,
-  LolliPOPKeysModel,
   TTL_VALUE_AFTER_UPDATE
 } from "../model/lollipop_keys";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
 import {
   retrievedLollipopKeysToApiActivatedPubKey,
   retrievedValidPopDocument
-} from "../utils/lollipop_keys_utils";
-import { getAllAssertionsRef } from "../utils/lollipopKeys";
-import { domainErrorToResponseError } from "../utils/domain_errors";
+} from "../utils/lollipopKeys";
+import {
+  getAlgoFromAssertionRef,
+  getAllAssertionsRef
+} from "../utils/lollipopKeys";
+import { domainErrorToResponseError } from "../utils/errors";
+import { JwkPublicKeyFromToken } from "@pagopa/ts-commons/lib/jwk";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -87,12 +83,24 @@ export const ActivatePubKeyHandler = (
             TE.mapLeft(error => ResponseErrorInternal(error.detail))
           )
         ),
-        TE.bind("assertionRefs", () =>
+        TE.bind("jwkPubKeyFromString", () =>
+          pipe(
+            popDocument.pubKey,
+            JwkPublicKeyFromToken.decode,
+            TE.fromEither,
+            TE.mapLeft(errors =>
+              ResponseErrorInternal(
+                `Could not decode public key | ${readableReport(errors)}`
+              )
+            )
+          )
+        ),
+        TE.bind("assertionRefs", ({ jwkPubKeyFromString }) =>
           pipe(
             getAllAssertionsRef(
               JwkPubKeyHashAlgorithmEnum.sha512,
-              popDocument.assertionRef,
-              popDocument.pubKey
+              getAlgoFromAssertionRef(popDocument.assertionRef),
+              jwkPubKeyFromString
             ),
             TE.mapLeft((error: Error) => ResponseErrorInternal(error.message))
           )

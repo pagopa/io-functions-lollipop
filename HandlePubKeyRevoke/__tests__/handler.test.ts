@@ -379,13 +379,15 @@ describe("handleRevoke", () => {
       .mockImplementationOnce(() => TE.right(O.some(aNotPendingLollipopPubKey)))
       .mockImplementationOnce(() => TE.right(O.some(aPendingLollipopPubKey)));
 
-    const result = await handleRevoke(
-      contextMock,
-      mockAppinsights as any,
-      lollipopKeysModelMock,
-      masterAlgo,
-      aValidRevokeInput
-    );
+    await expect(
+      handleRevoke(
+        contextMock,
+        mockAppinsights as any,
+        lollipopKeysModelMock,
+        masterAlgo,
+        aValidRevokeInput
+      )
+    ).rejects.toBeDefined();
 
     expect(findLastVersionByModelIdMock).toHaveBeenCalledTimes(2);
     expect(findLastVersionByModelIdMock).toHaveBeenNthCalledWith(1, [
@@ -403,22 +405,17 @@ describe("handleRevoke", () => {
     expect(mockAppinsights.trackException).toHaveBeenCalledWith(
       expect.objectContaining({
         properties: expect.objectContaining({
-          detail: "PERMANENT",
+          detail: "TRANSIENT",
+          errorMessage: expect.stringContaining(
+            "Cannot decode a VALID master lollipopPubKey"
+          ),
           name: "lollipop.pubKeys.revoke.failure"
         })
       })
     );
-    expect(result).toEqual(
-      expect.objectContaining({
-        kind: "PERMANENT",
-        reason: expect.stringContaining(
-          "Cannot decode a VALID master lollipopPubKey"
-        )
-      })
-    );
   });
 
-  it("GIVEN a valid revoke message that does not match master key WHEN master lollipopPubKey is retieved THEN it should upsert to REVOKED all pubKeys", async () => {
+  it("GIVEN a valid revoke message that does not match master key WHEN master lollipopPubKey is retrieved THEN it should upsert to REVOKED all pubKeys", async () => {
     findLastVersionByModelIdMock
       .mockImplementationOnce(() => TE.right(O.some(aNotPendingLollipopPubKey)))
       .mockImplementationOnce(() =>

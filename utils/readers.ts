@@ -6,7 +6,7 @@ import {
   LolliPOPKeysModel,
   RetrievedLolliPopPubKeys
 } from "../model/lollipop_keys";
-import { cosmosErrorsToString, DomainError, ErrorKind } from "./domain_errors";
+import { cosmosErrorsToString, DomainError, ErrorKind } from "./errors";
 
 export type PopDocumentReader = RTE.ReaderTaskEither<
   AssertionRef,

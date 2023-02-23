@@ -26,7 +26,7 @@ export const aValidJwk: JwkPublicKey = {
 export const toEncodedJwk = (jwk: JwkPublicKey) =>
   jose.base64url.encode(JSON.stringify(jwk)) as NonEmptyString;
 
-export const aValidSha256AssertionRef = "sha256-9f86d081884c7d659a2feaa0c55ad015a3bf4f1234" as AssertionRef;
+export const aValidSha256AssertionRef = "sha256-a7qE0Y0DyqeOFFREIQSLKfu5WlbckdxVXKFasfcI-Dg" as AssertionRef;
 export const aValidSha512AssertionRef = "sha512-nX5CfUc5R-FoYKYZwvQMuc4Tt-heb7vHi_O-AMUSqHNVCw9kNaN2SVuN-DXtGXyUhrcVcQdCyY6FVzl_vyWXNA" as AssertionRef;
 
 export const aPendingSh256LollipopPubKey: PendingLolliPopPubKeys = {

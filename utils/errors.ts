@@ -1,8 +1,15 @@
 import * as t from "io-ts";
 import * as O from "fp-ts/lib/Option";
 import { pipe } from "fp-ts/lib/function";
-import { Context } from "@azure/functions";
-import { TelemetryClient, trackException } from "./appinsights";
+import { CosmosErrors } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { errorsToReadableMessages } from "@pagopa/ts-commons/lib/reporters";
+import {
+  IResponseErrorInternal,
+  IResponseErrorNotFound,
+  ResponseErrorInternal,
+  ResponseErrorNotFound
+} from "@pagopa/ts-commons/lib/responses";
 
 export const assertNever = (x: never): never => {
   throw new Error(`Unexpected object: ${JSON.stringify(x)}`);
@@ -58,26 +65,43 @@ export const toPermanentFailure = (err: Error, customReason?: string) => (
       })
   );
 
-export const trackFailure = (
-  telemetryClient: TelemetryClient,
-  context: Context,
-  logPrefix: string
-) => (err: Failure): Failure => {
-  const error = TransientFailure.is(err)
-    ? `${logPrefix}|TRANSIENT_ERROR=${err.reason}`
-    : `${logPrefix}|FATAL|PERMANENT_ERROR=${err.reason}`;
-  trackException(telemetryClient, {
-    exception: new Error(error),
-    properties: {
-      detail: err.kind,
-      fatal: PermanentFailure.is(err).toString(),
-      isSuccess: "false",
-      name: `cgn.exception.${logPrefix}.failure`
-    }
-  });
-  context.log.error(error);
-  if (TransientFailure.is(err)) {
-    throw new Error(err.reason);
-  }
-  return err;
-};
+//
+// LOLLIPOP READERS/WRITERS ERRORS
+//
+export enum ErrorKind {
+  NotFound = "NotFound",
+  Internal = "Internal"
+}
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export interface InternalError {
+  readonly kind: ErrorKind.Internal;
+  readonly detail: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export interface NotFoundError {
+  readonly kind: ErrorKind.NotFound;
+}
+
+export type DomainError = InternalError | NotFoundError;
+
+export const cosmosErrorsToString = (errs: CosmosErrors): NonEmptyString =>
+  pipe(
+    errs.kind === "COSMOS_EMPTY_RESPONSE"
+      ? "Empty response"
+      : errs.kind === "COSMOS_DECODING_ERROR"
+      ? "Decoding error: " + errorsToReadableMessages(errs.error).join("/")
+      : errs.kind === "COSMOS_CONFLICT_RESPONSE"
+      ? "Conflict error"
+      : "Generic error: " + JSON.stringify(errs.error),
+
+    errorString => errorString as NonEmptyString
+  );
+
+export const domainErrorToResponseError = (
+  error: DomainError
+): IResponseErrorNotFound | IResponseErrorInternal =>
+  error.kind === ErrorKind.NotFound
+    ? ResponseErrorNotFound(error.kind, "Could not find requested resource")
+    : ResponseErrorInternal(error.detail);

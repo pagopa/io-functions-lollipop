@@ -7,7 +7,7 @@ import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
 import { AssertionTypeEnum } from "../../generated/definitions/internal/AssertionType";
 
-import { ErrorKind } from "../../utils/domain_errors";
+import { ErrorKind } from "../../utils/errors";
 import { PopDocumentReader } from "../../utils/readers";
 import { AssertionWriter, PopDocumentWriter } from "../../utils/writers";
 import { NewLolliPopPubKeys } from "../../model/lollipop_keys";
@@ -60,131 +60,6 @@ const aValidPayload: ActivatePubKeyPayload = {
   assertion_type: AssertionTypeEnum.SAML,
   expires_at: expiresAtDate
 };
-
-describe("ActivatePubKey - Success", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("should return the ActivatedPubKey object when assertion_ref is sha256", async () => {
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha256AssertionRef,
-      aValidPayload
-    );
-
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`,
-      assertionRef: aValidSha256AssertionRef,
-      assertionType: AssertionTypeEnum.SAML,
-      expiredAt: expiresAtDate,
-      fiscalCode: aFiscalCode,
-      pubKey: aRetrievedPendingLollipopPubKeySha256.pubKey,
-      status: PubKeyStatusEnum.VALID
-    };
-
-    const expectedSha512Thumbprint = await jose.calculateJwkThumbprint(
-      aValidJwk,
-      masterAlgo
-    );
-
-    expect(res).toMatchObject({
-      kind: "IResponseSuccessJson",
-      value: {
-        assertion_file_name: expectedResult.assertionFileName,
-        assertion_ref: expectedResult.assertionRef,
-        assertion_type: expectedResult.assertionType,
-        expires_at: expectedResult.expiredAt,
-        fiscal_code: expectedResult.fiscalCode,
-        pub_key: expectedResult.pubKey,
-        status: expectedResult.status,
-        version: 1
-      }
-    });
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha256AssertionRef
-    );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).toHaveBeenCalledTimes(2);
-    expect(popDocumentWriterMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        ...expectedResult,
-        assertionRef: `sha512-${expectedSha512Thumbprint}`
-      })
-    );
-    expect(popDocumentWriterMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        ...expectedResult
-      })
-    );
-  });
-
-  it("should return the ActivatedPubKey object when assertion_ref is sha512", async () => {
-    const handler = ActivatePubKeyHandler(
-      popDocumentReaderMock,
-      popDocumentWriterMock,
-      assertionWriterMock
-    );
-
-    const res = await handler(
-      contextMock,
-      aValidSha512AssertionRef,
-      aValidPayload
-    );
-
-    const expectedResult = {
-      assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`,
-      assertionRef: aValidSha512AssertionRef,
-      assertionType: AssertionTypeEnum.SAML,
-      expiredAt: expiresAtDate,
-      fiscalCode: aFiscalCode,
-      pubKey: aRetrievedPendingLollipopPubKeySha512.pubKey,
-      status: PubKeyStatusEnum.VALID
-    };
-
-    expect(res).toMatchObject({
-      kind: "IResponseSuccessJson",
-      value: {
-        assertion_file_name: expectedResult.assertionFileName,
-        assertion_ref: expectedResult.assertionRef,
-        assertion_type: expectedResult.assertionType,
-        expires_at: expectedResult.expiredAt,
-        fiscal_code: expectedResult.fiscalCode,
-        pub_key: expectedResult.pubKey,
-        status: expectedResult.status,
-        version: 1
-      }
-    });
-
-    expect(popDocumentReaderMock).toHaveBeenCalledWith(
-      aValidSha512AssertionRef
-    );
-    expect(assertionWriterMock).toHaveBeenCalledWith(
-      expectedResult.assertionFileName,
-      aValidPayload.assertion
-    );
-    expect(popDocumentWriterMock).toHaveBeenCalledTimes(1);
-
-    expect(popDocumentWriterMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        ...expectedResult
-      })
-    );
-  });
-});
 
 describe("ActivatePubKey - Errors", () => {
   beforeEach(() => {

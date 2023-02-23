@@ -1,6 +1,9 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
-import { LolliPOPKeysModel } from "../model/lollipop_keys";
+import {
+  LolliPOPKeysModel,
+  LOLLIPOPKEYS_COLLECTION_NAME
+} from "../model/lollipop_keys";
 import { initTelemetryClient } from "../utils/appinsights";
 import { getConfigOrThrow } from "../utils/config";
 import { cosmosdbInstance } from "../utils/cosmosdb";
@@ -10,7 +13,7 @@ import { handleRevoke } from "./handler";
 const config = getConfigOrThrow();
 
 const lollipopKeysModel = new LolliPOPKeysModel(
-  cosmosdbInstance.container("PIPPO")
+  cosmosdbInstance.container(LOLLIPOPKEYS_COLLECTION_NAME)
 );
 
 const telemetryClient = initTelemetryClient(
