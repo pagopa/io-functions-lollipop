@@ -20,11 +20,12 @@ import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/lib/Option";
 import { readableReport } from "@pagopa/ts-commons/lib/reporters";
+import { JwkPublicKeyFromToken } from "@pagopa/ts-commons/lib/jwk";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
 import { AssertionWriter, PopDocumentWriter } from "../utils/writers";
-import { getPopDocumentReader, PopDocumentReader } from "../utils/readers";
+import { PopDocumentReader } from "../utils/readers";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
   AssertionFileName,
@@ -40,7 +41,6 @@ import {
   getAllAssertionsRef
 } from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/errors";
-import { JwkPublicKeyFromToken } from "@pagopa/ts-commons/lib/jwk";
 
 type ActivatePubKeyHandler = (
   context: Context,

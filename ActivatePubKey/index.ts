@@ -10,9 +10,9 @@ import {
 } from "../model/lollipop_keys";
 import { cosmosdbInstance } from "../utils/cosmosdb";
 import { getConfigOrThrow } from "../utils/config";
-import { ActivatePubKey } from "./handler";
 import { getPopDocumentReader } from "../utils/readers";
 import { getAssertionWriter, getPopDocumentWriter } from "../utils/writers";
+import { ActivatePubKey } from "./handler";
 
 const config = getConfigOrThrow();
 

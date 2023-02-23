@@ -5,6 +5,8 @@ import * as O from "fp-ts/Option";
 import { flow, pipe } from "fp-ts/lib/function";
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import * as t from "io-ts";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
 import {
   JwkPubKeyHashAlgorithm,
   JwkPubKeyHashAlgorithmEnum
@@ -16,7 +18,6 @@ import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionR
 import { assertNever } from "./errors";
 import { calculateThumbprint } from "./thumbprint";
 import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
-import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 
 export const MASTER_HASH_ALGO = JwkPubKeyHashAlgorithmEnum.sha512;
