@@ -20,15 +20,15 @@ export type RetrievedValidPopDocument = t.TypeOf<
 export const retrievedLollipopKeysToApiActivatedPubKey = (
   popDocument: RetrievedValidPopDocument
 ): ActivatedPubKey => ({
-  assertion_ref: popDocument.assertionRef,
   assertion_file_name: (popDocument.assertionFileName as unknown) as NonEmptyString,
+  assertion_ref: popDocument.assertionRef,
   assertion_type: popDocument.assertionType,
-  version: popDocument.version,
-  status: popDocument.status,
-  pub_key: popDocument.pubKey,
-  fiscal_code: popDocument.fiscalCode,
   expires_at: popDocument.expiredAt,
-  ttl: popDocument.ttl
+  fiscal_code: popDocument.fiscalCode,
+  pub_key: popDocument.pubKey,
+  status: popDocument.status,
+  ttl: popDocument.ttl,
+  version: popDocument.version
 });
 
 export const calculateThumbprint = (

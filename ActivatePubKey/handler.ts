@@ -21,6 +21,7 @@ import * as TE from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/lib/Option";
 import { BlobService } from "azure-storage";
 import { readableReport } from "@pagopa/ts-commons/lib/reporters";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
@@ -44,7 +45,6 @@ import {
 } from "../utils/lollipop_keys_utils";
 import { getAllAssertionsRef } from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/domain_errors";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -62,7 +62,11 @@ export const ActivatePubKeyHandler = (
   popDocumentReader: PopDocumentReader,
   popDocumentWriter: PopDocumentWriter,
   assertionWriter: AssertionWriter
-): ActivatePubKeyHandler => (_, assertion_ref, body) =>
+): ActivatePubKeyHandler => (
+  _,
+  assertion_ref,
+  body
+): ReturnType<ActivatePubKeyHandler> =>
   pipe(
     popDocumentReader(assertion_ref),
     TE.mapLeft(domainErrorToResponseError),
@@ -98,14 +102,14 @@ export const ActivatePubKeyHandler = (
           ({ assertionRefs, assertionFileName }) =>
             pipe(
               popDocumentWriter({
-                pubKey: popDocument.pubKey,
-                ttl: TTL_VALUE_AFTER_UPDATE,
-                assertionRef: assertionRefs.master,
                 assertionFileName,
-                status: PubKeyStatusEnum.VALID,
+                assertionRef: assertionRefs.master,
                 assertionType: body.assertion_type,
+                expiredAt: body.expires_at,
                 fiscalCode: body.fiscal_code,
-                expiredAt: body.expires_at
+                pubKey: popDocument.pubKey,
+                status: PubKeyStatusEnum.VALID,
+                ttl: TTL_VALUE_AFTER_UPDATE
               }),
               TE.mapLeft(error => ResponseErrorInternal(error.detail))
             )
@@ -121,14 +125,14 @@ export const ActivatePubKeyHandler = (
                 u =>
                   pipe(
                     popDocumentWriter({
-                      pubKey: popDocument.pubKey,
-                      ttl: TTL_VALUE_AFTER_UPDATE,
-                      assertionRef: u,
                       assertionFileName,
-                      status: PubKeyStatusEnum.VALID,
+                      assertionRef: u,
                       assertionType: body.assertion_type,
+                      expiredAt: body.expires_at,
                       fiscalCode: body.fiscal_code,
-                      expiredAt: body.expires_at
+                      pubKey: popDocument.pubKey,
+                      status: PubKeyStatusEnum.VALID,
+                      ttl: TTL_VALUE_AFTER_UPDATE
                     }),
                     TE.mapLeft(error => ResponseErrorInternal(error.detail))
                   )

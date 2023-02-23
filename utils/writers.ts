@@ -28,19 +28,22 @@ export type AssertionWriter = (
 // IMPLEMENTATION
 export const getPopDocumentWriter = (
   lollipopKeysModel: LolliPOPKeysModel
-): PopDocumentWriter => item =>
+): PopDocumentWriter => (item): ReturnType<PopDocumentWriter> =>
   pipe(
     lollipopKeysModel.upsert(item),
     TE.mapLeft(error => ({
-      kind: ErrorKind.Internal as const,
-      detail: cosmosErrorsToString(error)
+      detail: cosmosErrorsToString(error),
+      kind: ErrorKind.Internal as const
     }))
   );
 
 export const getAssertionWriter = (
   assertionBlobService: BlobService,
   lollipopAssertionStorageContainerName: NonEmptyString
-): AssertionWriter => (assertionFileName, assertion) =>
+): AssertionWriter => (
+  assertionFileName,
+  assertion
+): ReturnType<AssertionWriter> =>
   pipe(
     TE.tryCatch(
       () =>
@@ -54,13 +57,13 @@ export const getAssertionWriter = (
     ),
     TE.chainW(TE.fromEither),
     TE.mapLeft((error: Error) => ({
-      kind: ErrorKind.Internal as const,
-      detail: `${error.message}`
+      detail: `${error.message}`,
+      kind: ErrorKind.Internal as const
     })),
     TE.chainW(
       TE.fromOption(() => ({
-        kind: ErrorKind.Internal as const,
-        detail: "Can not upload blob to storage"
+        detail: "Can not upload blob to storage",
+        kind: ErrorKind.Internal as const
       }))
     ),
     TE.map(_ => true)
