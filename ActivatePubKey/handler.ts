@@ -43,8 +43,12 @@ import {
   retrievedLollipopKeysToApiActivatedPubKey,
   retrievedValidPopDocument
 } from "../utils/lollipop_keys_utils";
-import { getAllAssertionsRef } from "../utils/lollipopKeys";
+import {
+  getAlgoFromAssertionRef,
+  getAllAssertionsRef
+} from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/domain_errors";
+import { JwkPublicKeyFromToken } from "@pagopa/ts-commons/lib/jwk";
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -87,12 +91,24 @@ export const ActivatePubKeyHandler = (
             TE.mapLeft(error => ResponseErrorInternal(error.detail))
           )
         ),
-        TE.bind("assertionRefs", () =>
+        TE.bind("jwkPubKeyFromString", () =>
+          pipe(
+            popDocument.pubKey,
+            JwkPublicKeyFromToken.decode,
+            TE.fromEither,
+            TE.mapLeft(errors =>
+              ResponseErrorInternal(
+                `Could not decode public key | ${readableReport(errors)}`
+              )
+            )
+          )
+        ),
+        TE.bind("assertionRefs", ({ jwkPubKeyFromString }) =>
           pipe(
             getAllAssertionsRef(
               JwkPubKeyHashAlgorithmEnum.sha512,
-              popDocument.assertionRef,
-              popDocument.pubKey
+              getAlgoFromAssertionRef(popDocument.assertionRef),
+              jwkPubKeyFromString
             ),
             TE.mapLeft((error: Error) => ResponseErrorInternal(error.message))
           )
