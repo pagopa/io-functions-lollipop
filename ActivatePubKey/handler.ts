@@ -16,7 +16,7 @@ import {
   ResponseSuccessJson
 } from "@pagopa/ts-commons/lib/responses";
 import * as express from "express";
-import { pipe } from "fp-ts/lib/function";
+import { constVoid, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/lib/Option";
 import { readableReport } from "@pagopa/ts-commons/lib/reporters";
@@ -129,27 +129,21 @@ export const ActivatePubKeyHandler = (
         TE.bind(
           "retrievedUsedPopDocument",
           ({ assertionRefs, assertionFileName }) =>
-            pipe(
-              assertionRefs.used,
-              TE.fromNullable(() => void 0),
-              TE.foldW(
-                () => TE.right(void 0),
-                u =>
-                  pipe(
-                    popDocumentWriter({
-                      assertionFileName,
-                      assertionRef: u,
-                      assertionType: body.assertion_type,
-                      expiredAt: body.expires_at,
-                      fiscalCode: body.fiscal_code,
-                      pubKey: popDocument.pubKey,
-                      status: PubKeyStatusEnum.VALID,
-                      ttl: TTL_VALUE_AFTER_UPDATE
-                    }),
-                    TE.mapLeft(error => ResponseErrorInternal(error.detail))
-                  )
-              )
-            )
+            assertionRefs.used
+              ? pipe(
+                  popDocumentWriter({
+                    assertionFileName,
+                    assertionRef: assertionRefs.used,
+                    assertionType: body.assertion_type,
+                    expiredAt: body.expires_at,
+                    fiscalCode: body.fiscal_code,
+                    pubKey: popDocument.pubKey,
+                    status: PubKeyStatusEnum.VALID,
+                    ttl: TTL_VALUE_AFTER_UPDATE
+                  }),
+                  TE.mapLeft(error => ResponseErrorInternal(error.detail))
+                )
+              : TE.of(void 0)
         ),
         TE.chain(({ retrievedPopDocument, retrievedUsedPopDocument }) =>
           pipe(
