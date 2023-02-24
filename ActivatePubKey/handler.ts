@@ -150,14 +150,13 @@ export const ActivatePubKeyHandler = (
             retrievedUsedPopDocument,
             O.fromNullable,
             O.getOrElse(() => retrievedPopDocument),
-            RetrievedValidPopDocument.decode,
-            TE.fromEither,
-            TE.mapLeft(errors =>
-              ResponseErrorInternal(
-                `Could not decode retrievedPopDocument | ${readableReport(
-                  errors
-                )}`
-              )
+            TE.fromPredicate(
+              (rd): rd is RetrievedValidPopDocument =>
+                rd.status === PubKeyStatusEnum.VALID,
+              () =>
+                ResponseErrorInternal(
+                  `Unexpected retrievedPopDocument with a not VALID status`
+                )
             ),
             TE.map(validStatusPopDocument =>
               ResponseSuccessJson(
