@@ -249,6 +249,73 @@ describe("activatePubKey |> Success Results", () => {
       )
     );
   });
+
+  it("should succeed when valid payload is passed to the endpoint AND when algo == master", async () => {
+    const anAssertionFileNameForSha512 = `${aFiscalCode}-${aValidSha512AssertionRef}`;
+    const aNewPopDocumentWithMasterAlgo: NewLolliPopPubKeys = {
+      ...aNewPopDocument,
+      assertionRef: aValidSha512AssertionRef
+    };
+    // TODO: replace with insert call (POST /api/v1/pubKeys)
+    const retrieved = await lolliPOPKeysModel.create(
+      aNewPopDocumentWithMasterAlgo
+    )();
+
+    expect(retrieved._tag).toEqual("Right");
+
+    const response = await fetchActivatePubKey(
+      aValidSha512AssertionRef,
+      validActivatePubKeyPayload,
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
+    );
+
+    expect(response.status).toEqual(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      fiscal_code: validActivatePubKeyPayload.fiscal_code,
+      expires_at: validActivatePubKeyPayload.expires_at.toISOString(),
+      assertion_type: validActivatePubKeyPayload.assertion_type,
+      assertion_ref: aValidSha512AssertionRef,
+      assertion_file_name: anAssertionFileNameForSha512,
+      pub_key: toEncodedJwk(aValidJwk),
+      status: PubKeyStatusEnum.VALID,
+      ttl: TTL_VALUE_AFTER_UPDATE,
+      version: 1
+    });
+
+    // Check values on storages
+
+    const assertionBlob = await pipe(
+      getBlobAsTextWithError(
+        blobService,
+        LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
+      )(anAssertionFileNameForSha512),
+      TE.map(O.map(JSON.parse))
+    )();
+
+    expect(assertionBlob).toEqual(
+      E.right(O.some(validActivatePubKeyPayload.assertion))
+    );
+
+    // Check master document(the only one present)
+    const masterDocument = await lolliPOPKeysModel.findLastVersionByModelId([
+      aValidSha512AssertionRef
+    ])();
+
+    expect(masterDocument).toEqual(
+      E.right(
+        O.some(
+          expect.objectContaining({
+            assertionRef: aValidSha512AssertionRef,
+            assertionFileName: anAssertionFileNameForSha512,
+            status: PubKeyStatusEnum.VALID,
+            version: 0
+          })
+        )
+      )
+    );
+  });
 });
 
 // -----------------------
