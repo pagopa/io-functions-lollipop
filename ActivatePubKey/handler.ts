@@ -29,6 +29,7 @@ import { PopDocumentReader } from "../utils/readers";
 import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
   AssertionFileName,
+  PendingLolliPopPubKeys,
   TTL_VALUE_AFTER_UPDATE
 } from "../model/lollipop_keys";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
@@ -66,6 +67,11 @@ export const ActivatePubKeyHandler = (
   pipe(
     popDocumentReader(assertion_ref),
     TE.mapLeft(domainErrorToResponseError),
+    TE.chainW(
+      TE.fromPredicate(PendingLolliPopPubKeys.is, () =>
+        ResponseErrorInternal("Unexpected status on pop document")
+      )
+    ),
     TE.chainW(popDocument =>
       pipe(
         `${body.fiscal_code}-${assertion_ref}`,

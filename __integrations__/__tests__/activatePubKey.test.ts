@@ -8,6 +8,7 @@ import { createBlobService } from "azure-storage";
 import * as TE from "fp-ts/TaskEither";
 import * as E from "fp-ts/Either";
 import * as O from "fp-ts/Option";
+import * as jose from "jose";
 import { pipe } from "fp-ts/lib/function";
 import { getBlobAsTextWithError } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
 import {
@@ -18,6 +19,7 @@ import {
 import { getNodeFetch } from "../utils/fetch";
 import { log } from "../utils/logger";
 import {
+  AssertionFileName,
   LolliPOPKeysModel,
   NewLolliPopPubKeys,
   TTL_VALUE_AFTER_UPDATE,
@@ -43,8 +45,12 @@ import {
 } from "../../__mocks__/lollipopPubKey.mock";
 import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
 import { AssertionTypeEnum } from "../../generated/definitions/internal/AssertionType";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { FiscalCode, NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { fetchActivatePubKey } from "../utils/client";
+import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
+import { calculateJwkThumbprint } from "jose";
+import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
+import { JwkPubKeyHashAlgorithmEnum } from "../../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 
 const MAX_ATTEMPT = 50;
 
@@ -112,6 +118,19 @@ const validActivatePubKeyPayload: ActivatePubKeyPayload = {
   fiscal_code: aFiscalCode
 };
 
+// this method generates new JWK for use in the describe below
+const generateJwkForTest = async (): Promise<JwkPublicKey> => {
+  const keyPair = await jose.generateKeyPair("ES256");
+  return (await jose.exportJWK(keyPair.publicKey)) as JwkPublicKey;
+};
+
+const generateAssertionRefForTest = async (
+  jwk: JwkPublicKey,
+  algo: JwkPubKeyHashAlgorithmEnum = JwkPubKeyHashAlgorithmEnum.sha256
+): Promise<AssertionRef> => {
+  return (await jose.calculateJwkThumbprint(jwk, algo)) as AssertionRef;
+};
+
 // -------------------------
 // Tests
 // -------------------------
@@ -166,6 +185,47 @@ describe("activatePubKey |> Failures", () => {
     expect(body).toMatchObject({
       status: 404,
       title: "NotFound"
+    });
+  });
+
+  it("should return 500 when the retrieved pop document has status != PENDING", async () => {
+    const randomJwk = await generateJwkForTest();
+    const randomAssertionRef = await generateAssertionRefForTest(randomJwk);
+    const randomAssertionFileName = `${aFiscalCode}-${randomAssertionRef}` as AssertionFileName;
+
+    const randomNewPopDocument: NewLolliPopPubKeys = {
+      pubKey: toEncodedJwk(randomJwk),
+      ttl: TTL_VALUE_FOR_RESERVATION,
+      assertionRef: randomAssertionRef,
+      status: PubKeyStatusEnum.REVOKED,
+      assertionFileName: randomAssertionFileName,
+      assertionType: AssertionTypeEnum.SAML,
+      fiscalCode: aFiscalCode,
+      expiredAt: expires
+    };
+    const randomActivatePubKeyPayload: ActivatePubKeyPayload = {
+      fiscal_code: aFiscalCode,
+      assertion: "aValidAssertion" as NonEmptyString,
+      assertion_type: AssertionTypeEnum.SAML,
+      expires_at: expires
+    };
+
+    const res = await lolliPOPKeysModel.create(randomNewPopDocument)();
+
+    expect(res._tag).toEqual("Right");
+
+    const response = await fetchActivatePubKey(
+      randomAssertionRef,
+      randomActivatePubKeyPayload,
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
+    );
+
+    expect(response.status).toEqual(500);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      status: 500,
+      title: "Internal server error: Unexpected status on pop document"
     });
   });
 });
@@ -251,11 +311,18 @@ describe("activatePubKey |> Success Results", () => {
   });
 
   it("should succeed when valid payload is passed to the endpoint AND when algo == master", async () => {
-    const anAssertionFileNameForSha512 = `${aFiscalCode}-${aValidSha512AssertionRef}`;
+    const randomJwk = await generateJwkForTest();
+    const randomAssertionRef = await generateAssertionRefForTest(
+      randomJwk,
+      JwkPubKeyHashAlgorithmEnum.sha512
+    );
     const aNewPopDocumentWithMasterAlgo: NewLolliPopPubKeys = {
       ...aNewPopDocument,
-      assertionRef: aValidSha512AssertionRef
+      assertionRef: randomAssertionRef
     };
+
+    const randomAssertionFileName = `${validActivatePubKeyPayload.fiscal_code}-${randomAssertionRef}`;
+
     // TODO: replace with insert call (POST /api/v1/pubKeys)
     const retrieved = await lolliPOPKeysModel.create(
       aNewPopDocumentWithMasterAlgo
@@ -264,7 +331,7 @@ describe("activatePubKey |> Success Results", () => {
     expect(retrieved._tag).toEqual("Right");
 
     const response = await fetchActivatePubKey(
-      aValidSha512AssertionRef,
+      randomAssertionRef,
       validActivatePubKeyPayload,
       baseUrl,
       (myFetch as unknown) as typeof fetch
@@ -276,9 +343,9 @@ describe("activatePubKey |> Success Results", () => {
       fiscal_code: validActivatePubKeyPayload.fiscal_code,
       expires_at: validActivatePubKeyPayload.expires_at.toISOString(),
       assertion_type: validActivatePubKeyPayload.assertion_type,
-      assertion_ref: aValidSha512AssertionRef,
-      assertion_file_name: anAssertionFileNameForSha512,
-      pub_key: toEncodedJwk(aValidJwk),
+      assertion_ref: randomAssertionRef,
+      assertion_file_name: randomAssertionFileName,
+      pub_key: toEncodedJwk(randomJwk),
       status: PubKeyStatusEnum.VALID,
       ttl: TTL_VALUE_AFTER_UPDATE,
       version: 1
@@ -290,7 +357,7 @@ describe("activatePubKey |> Success Results", () => {
       getBlobAsTextWithError(
         blobService,
         LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
-      )(anAssertionFileNameForSha512),
+      )(randomAssertionFileName),
       TE.map(O.map(JSON.parse))
     )();
 
@@ -300,15 +367,15 @@ describe("activatePubKey |> Success Results", () => {
 
     // Check master document(the only one present)
     const masterDocument = await lolliPOPKeysModel.findLastVersionByModelId([
-      aValidSha512AssertionRef
+      randomAssertionRef
     ])();
 
     expect(masterDocument).toEqual(
       E.right(
         O.some(
           expect.objectContaining({
-            assertionRef: aValidSha512AssertionRef,
-            assertionFileName: anAssertionFileNameForSha512,
+            assertionRef: randomAssertionRef,
+            assertionFileName: randomAssertionFileName,
             status: PubKeyStatusEnum.VALID,
             version: 0
           })

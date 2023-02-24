@@ -20,11 +20,14 @@ import {
   aFiscalCode,
   aValidJwk,
   aValidSha512AssertionRef,
-  aRetrievedPendingLollipopPubKeySha512
+  aRetrievedPendingLollipopPubKeySha512,
+  aRetrievedValidLollipopPubKeySha256
 } from "../../__mocks__/lollipopPubKey.mock";
 import { contextMock } from "../../__mocks__/context.mock";
 import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
+import { HttpStatusCodeEnum } from "@pagopa/ts-commons/lib/responses";
+import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 
 const popDocumentReaderMock = jest.fn(
   (assertionRef: AssertionRef) =>
@@ -86,6 +89,41 @@ describe("ActivatePubKey - Errors", () => {
     expect(res).toMatchObject({
       kind: "IResponseErrorNotFound",
       detail: "NotFound: Could not find requested resource"
+    });
+
+    expect(popDocumentReaderMock).toHaveBeenCalledWith(
+      aValidSha256AssertionRef
+    );
+    expect(assertionWriterMock).not.toHaveBeenCalled();
+    expect(popDocumentWriterMock).not.toHaveBeenCalled();
+  });
+
+  it("should return 500 Internal Error when a pop document with status != PENDING is found", async () => {
+    popDocumentReaderMock.mockImplementationOnce(assertionRef =>
+      TE.of({
+        ...aRetrievedValidLollipopPubKeySha256,
+        assertionRef: assertionRef,
+        id: `${assertionRef}-000000` as NonEmptyString,
+        version: 0 as NonNegativeInteger,
+        status: PubKeyStatusEnum.REVOKED
+      })
+    );
+
+    const handler = ActivatePubKeyHandler(
+      popDocumentReaderMock,
+      popDocumentWriterMock,
+      assertionWriterMock
+    );
+
+    const res = await handler(
+      contextMock,
+      aValidSha256AssertionRef,
+      aValidPayload
+    );
+
+    expect(res).toMatchObject({
+      kind: "IResponseErrorInternal",
+      detail: "Internal server error: Unexpected status on pop document"
     });
 
     expect(popDocumentReaderMock).toHaveBeenCalledWith(

@@ -1,6 +1,6 @@
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/lib/TaskEither";
-import { flow, pipe } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/function";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import {
   LolliPOPKeysModel,
@@ -26,7 +26,5 @@ export const getPopDocumentReader = (
       detail: cosmosErrorsToString(error),
       kind: ErrorKind.Internal as const
     })),
-    TE.chainW(
-      flow(TE.fromOption(() => ({ kind: ErrorKind.NotFound as const })))
-    )
+    TE.chainW(TE.fromOption(() => ({ kind: ErrorKind.NotFound as const })))
   );
