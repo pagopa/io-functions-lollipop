@@ -67,10 +67,8 @@ export const ActivatePubKeyHandler = (
   pipe(
     popDocumentReader(assertion_ref),
     TE.mapLeft(domainErrorToResponseError),
-    TE.chainW(
-      TE.fromPredicate(PendingLolliPopPubKeys.is, () =>
-        ResponseErrorInternal("Unexpected status on pop document")
-      )
+    TE.filterOrElseW(PendingLolliPopPubKeys.is, () =>
+      ResponseErrorInternal("Unexpected status on pop document")
     ),
     TE.chainW(popDocument =>
       pipe(
