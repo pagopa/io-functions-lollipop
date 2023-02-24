@@ -128,7 +128,8 @@ const generateAssertionRefForTest = async (
   jwk: JwkPublicKey,
   algo: JwkPubKeyHashAlgorithmEnum = JwkPubKeyHashAlgorithmEnum.sha256
 ): Promise<AssertionRef> => {
-  return (await jose.calculateJwkThumbprint(jwk, algo)) as AssertionRef;
+  const thumbprint = await jose.calculateJwkThumbprint(jwk, algo);
+  return `${algo}-${thumbprint}` as AssertionRef;
 };
 
 // -------------------------
@@ -225,7 +226,8 @@ describe("activatePubKey |> Failures", () => {
     const body = await response.json();
     expect(body).toMatchObject({
       status: 500,
-      title: "Internal server error: Unexpected status on pop document"
+      title: "Internal server error",
+      detail: "Unexpected status on pop document"
     });
   });
 });
@@ -318,7 +320,8 @@ describe("activatePubKey |> Success Results", () => {
     );
     const aNewPopDocumentWithMasterAlgo: NewLolliPopPubKeys = {
       ...aNewPopDocument,
-      assertionRef: randomAssertionRef
+      assertionRef: randomAssertionRef,
+      pubKey: toEncodedJwk(randomJwk)
     };
 
     const randomAssertionFileName = `${validActivatePubKeyPayload.fiscal_code}-${randomAssertionRef}`;
@@ -377,7 +380,7 @@ describe("activatePubKey |> Success Results", () => {
             assertionRef: randomAssertionRef,
             assertionFileName: randomAssertionFileName,
             status: PubKeyStatusEnum.VALID,
-            version: 0
+            version: 1
           })
         )
       )
