@@ -15,10 +15,10 @@ import { AssertionRefSha512 } from "../generated/definitions/internal/AssertionR
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionRefSha384";
 import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionRefSha256";
-import { assertNever } from "./errors";
-import { calculateThumbprint } from "./thumbprint";
 import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
+import { assertNever } from "./errors";
+import { calculateThumbprint } from "./thumbprint";
 
 export const MASTER_HASH_ALGO = JwkPubKeyHashAlgorithmEnum.sha512;
 export const AssertionRefByType = t.intersection([
