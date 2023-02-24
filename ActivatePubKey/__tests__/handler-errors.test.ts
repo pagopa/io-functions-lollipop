@@ -1,5 +1,3 @@
-import * as jose from "jose";
-
 import * as TE from "fp-ts/TaskEither";
 
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
@@ -18,15 +16,11 @@ import {
   aValidSha256AssertionRef,
   aRetrievedPendingLollipopPubKeySha256,
   aFiscalCode,
-  aValidJwk,
-  aValidSha512AssertionRef,
-  aRetrievedPendingLollipopPubKeySha512,
   aRetrievedValidLollipopPubKeySha256
 } from "../../__mocks__/lollipopPubKey.mock";
 import { contextMock } from "../../__mocks__/context.mock";
 import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
-import { HttpStatusCodeEnum } from "@pagopa/ts-commons/lib/responses";
 import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 
 const popDocumentReaderMock = jest.fn(
