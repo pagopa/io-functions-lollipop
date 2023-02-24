@@ -110,13 +110,13 @@ export const getAllAssertionsRef = (
     )
   );
 
-export const retrievedValidPopDocument = t.intersection([
+export const RetrievedValidPopDocument = t.intersection([
   ValidLolliPopPubKeys,
   Ttl,
   RetrievedVersionedModelTTL
 ]);
 export type RetrievedValidPopDocument = t.TypeOf<
-  typeof retrievedValidPopDocument
+  typeof RetrievedValidPopDocument
 >;
 
 export const retrievedLollipopKeysToApiActivatedPubKey = (

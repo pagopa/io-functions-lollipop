@@ -35,7 +35,7 @@ import {
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
 import {
   retrievedLollipopKeysToApiActivatedPubKey,
-  retrievedValidPopDocument
+  RetrievedValidPopDocument
 } from "../utils/lollipopKeys";
 import {
   getAlgoFromAssertionRef,
@@ -150,7 +150,7 @@ export const ActivatePubKeyHandler = (
             retrievedUsedPopDocument,
             O.fromNullable,
             O.getOrElse(() => retrievedPopDocument),
-            retrievedValidPopDocument.decode,
+            RetrievedValidPopDocument.decode,
             TE.fromEither,
             TE.mapLeft(errors =>
               ResponseErrorInternal(
