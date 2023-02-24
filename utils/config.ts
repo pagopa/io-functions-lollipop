@@ -26,9 +26,9 @@ export const IConfig = t.interface({
   COSMOSDB_URI: NonEmptyString,
   LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING: NonEmptyString,
   LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME: withDefault(
-    t.string,
+    NonEmptyString,
     "assertions" as NonEmptyString
-  ).pipe(NonEmptyString),
+  ),
 
   LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING: NonEmptyString,
 
