@@ -30,8 +30,6 @@ export const IConfig = t.interface({
     "assertions" as NonEmptyString
   ),
 
-  LOLLIPOP_ASSERTION_STORAGE_CONNECTION_STRING: NonEmptyString,
-
   isProduction: t.boolean
 });
 
