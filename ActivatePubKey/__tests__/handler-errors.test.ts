@@ -117,7 +117,8 @@ describe("ActivatePubKey - Errors", () => {
 
     expect(res).toMatchObject({
       kind: "IResponseErrorInternal",
-      detail: "Internal server error: Unexpected status on pop document"
+      detail:
+        "Internal server error: Unexpected status on pop document during activation: REVOKED"
     });
 
     expect(popDocumentReaderMock).toHaveBeenCalledWith(
