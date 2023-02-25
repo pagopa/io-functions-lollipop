@@ -16,32 +16,57 @@ import {
   ResponseSuccessJson
 } from "@pagopa/ts-commons/lib/responses";
 import * as express from "express";
-import { pipe } from "fp-ts/lib/function";
+import { flow, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
-import * as O from "fp-ts/lib/Option";
-import { readableReport } from "@pagopa/ts-commons/lib/reporters";
+import { readableReportSimplified } from "@pagopa/ts-commons/lib/reporters";
 import { JwkPublicKeyFromToken } from "@pagopa/ts-commons/lib/jwk";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { ActivatePubKeyPayload } from "../generated/definitions/internal/ActivatePubKeyPayload";
 import { AssertionWriter, PopDocumentWriter } from "../utils/writers";
 import { PopDocumentReader } from "../utils/readers";
-import { JwkPubKeyHashAlgorithmEnum } from "../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
   AssertionFileName,
-  PendingLolliPopPubKeys,
-  TTL_VALUE_AFTER_UPDATE
+  RetrievedLolliPopPubKeys
 } from "../model/lollipop_keys";
 import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
 import {
-  retrievedLollipopKeysToApiActivatedPubKey,
-  RetrievedValidPopDocument
+  isPendingLollipopPubKey,
+  isValidLollipopPubKey,
+  MASTER_HASH_ALGO,
+  retrievedLollipopKeysToApiActivatedPubKey
 } from "../utils/lollipopKeys";
 import {
   getAlgoFromAssertionRef,
   getAllAssertionsRef
 } from "../utils/lollipopKeys";
 import { domainErrorToResponseError } from "../utils/errors";
+
+export const activatePubKeyForAssertionRef = (
+  popDocumentWriter: PopDocumentWriter
+) => (
+  assertionFileName: AssertionFileName,
+  assertionRef: AssertionRef,
+  body: ActivatePubKeyPayload,
+  pubKey: NonEmptyString
+): TE.TaskEither<IResponseErrorInternal, RetrievedLolliPopPubKeys> =>
+  pipe(
+    popDocumentWriter({
+      assertionFileName,
+      assertionRef,
+      assertionType: body.assertion_type,
+      expiredAt: body.expires_at,
+      fiscalCode: body.fiscal_code,
+      pubKey,
+      status: PubKeyStatusEnum.VALID
+    }),
+    TE.mapLeft(error => ResponseErrorInternal(error.detail))
+  );
+
+// -------------------------------
+// Handler
+// -------------------------------
 
 type ActivatePubKeyHandler = (
   context: Context,
@@ -54,7 +79,6 @@ type ActivatePubKeyHandler = (
   | IResponseErrorForbiddenNotAuthorized
   | IResponseErrorInternal
 >;
-
 export const ActivatePubKeyHandler = (
   popDocumentReader: PopDocumentReader,
   popDocumentWriter: PopDocumentWriter,
@@ -67,106 +91,87 @@ export const ActivatePubKeyHandler = (
   pipe(
     popDocumentReader(assertion_ref),
     TE.mapLeft(domainErrorToResponseError),
-    TE.filterOrElseW(PendingLolliPopPubKeys.is, () =>
+    TE.filterOrElseW(isPendingLollipopPubKey, () =>
       ResponseErrorInternal("Unexpected status on pop document")
     ),
-    TE.chainW(popDocument =>
+    TE.bindTo("popDocument"),
+    TE.bindW("assertionFileName", () =>
       pipe(
         `${body.fiscal_code}-${assertion_ref}`,
         AssertionFileName.decode,
         TE.fromEither,
-        TE.bindTo("assertionFileName"),
         TE.mapLeft(errors =>
           ResponseErrorInternal(
-            `Could not decode assertionFileName | ${readableReport(errors)}`
+            `Could not decode assertionFileName | ${readableReportSimplified(
+              errors
+            )}`
           )
         ),
-        TE.chainFirst(({ assertionFileName }) =>
+        TE.chainFirst(assertionFileName =>
           pipe(
             assertionWriter(assertionFileName, body.assertion),
             TE.mapLeft(error => ResponseErrorInternal(error.detail))
           )
-        ),
-        TE.bind("jwkPubKeyFromString", () =>
-          pipe(
-            popDocument.pubKey,
-            JwkPublicKeyFromToken.decode,
-            TE.fromEither,
-            TE.mapLeft(errors =>
-              ResponseErrorInternal(
-                `Could not decode public key | ${readableReport(errors)}`
-              )
-            )
-          )
-        ),
-        TE.bind("assertionRefs", ({ jwkPubKeyFromString }) =>
-          pipe(
-            getAllAssertionsRef(
-              JwkPubKeyHashAlgorithmEnum.sha512,
-              getAlgoFromAssertionRef(popDocument.assertionRef),
-              jwkPubKeyFromString
-            ),
-            TE.mapLeft((error: Error) => ResponseErrorInternal(error.message))
-          )
-        ),
-        TE.bind(
-          "retrievedPopDocument",
-          ({ assertionRefs, assertionFileName }) =>
-            pipe(
-              popDocumentWriter({
-                assertionFileName,
-                assertionRef: assertionRefs.master,
-                assertionType: body.assertion_type,
-                expiredAt: body.expires_at,
-                fiscalCode: body.fiscal_code,
-                pubKey: popDocument.pubKey,
-                status: PubKeyStatusEnum.VALID,
-                ttl: TTL_VALUE_AFTER_UPDATE
-              }),
-              TE.mapLeft(error => ResponseErrorInternal(error.detail))
-            )
-        ),
-        TE.bind(
-          "retrievedUsedPopDocument",
-          ({ assertionRefs, assertionFileName }) =>
-            assertionRefs.used
-              ? pipe(
-                  popDocumentWriter({
-                    assertionFileName,
-                    assertionRef: assertionRefs.used,
-                    assertionType: body.assertion_type,
-                    expiredAt: body.expires_at,
-                    fiscalCode: body.fiscal_code,
-                    pubKey: popDocument.pubKey,
-                    status: PubKeyStatusEnum.VALID,
-                    ttl: TTL_VALUE_AFTER_UPDATE
-                  }),
-                  TE.mapLeft(error => ResponseErrorInternal(error.detail))
-                )
-              : TE.of(void 0)
-        ),
-        TE.chain(({ retrievedPopDocument, retrievedUsedPopDocument }) =>
-          pipe(
-            retrievedUsedPopDocument,
-            O.fromNullable,
-            O.getOrElse(() => retrievedPopDocument),
-            TE.fromPredicate(
-              (rd): rd is RetrievedValidPopDocument =>
-                rd.status === PubKeyStatusEnum.VALID,
-              () =>
-                ResponseErrorInternal(
-                  `Unexpected retrievedPopDocument with a not VALID status`
-                )
-            ),
-            TE.map(validStatusPopDocument =>
-              ResponseSuccessJson(
-                retrievedLollipopKeysToApiActivatedPubKey(
-                  validStatusPopDocument
-                )
-              )
-            )
+        )
+      )
+    ),
+    TE.bindW("jwkPubKeyFromString", ({ popDocument }) =>
+      pipe(
+        popDocument.pubKey,
+        JwkPublicKeyFromToken.decode,
+        TE.fromEither,
+        TE.mapLeft(errors =>
+          ResponseErrorInternal(
+            `Could not decode public key | ${readableReportSimplified(errors)}`
           )
         )
+      )
+    ),
+    TE.bindW("assertionRefs", ({ popDocument, jwkPubKeyFromString }) =>
+      pipe(
+        getAllAssertionsRef(
+          MASTER_HASH_ALGO,
+          getAlgoFromAssertionRef(popDocument.assertionRef),
+          jwkPubKeyFromString
+        ),
+        TE.mapLeft((error: Error) => ResponseErrorInternal(error.message))
+      )
+    ),
+    TE.bindW(
+      "retrievedPopDocument",
+      ({ popDocument, assertionRefs, assertionFileName }) =>
+        activatePubKeyForAssertionRef(popDocumentWriter)(
+          assertionFileName,
+          assertionRefs.master,
+          body,
+          popDocument.pubKey
+        )
+    ),
+    TE.chain(
+      ({
+        assertionRefs,
+        assertionFileName,
+        popDocument,
+        retrievedPopDocument
+      }) =>
+        assertionRefs.used
+          ? activatePubKeyForAssertionRef(popDocumentWriter)(
+              assertionFileName,
+              assertionRefs.used,
+              body,
+              popDocument.pubKey
+            )
+          : TE.of(retrievedPopDocument)
+    ),
+    TE.chainW(
+      flow(
+        TE.fromPredicate(isValidLollipopPubKey, () =>
+          ResponseErrorInternal(
+            `Unexpected retrievedPopDocument with a not VALID status`
+          )
+        ),
+        TE.map(retrievedLollipopKeysToApiActivatedPubKey),
+        TE.map(ResponseSuccessJson)
       )
     ),
     TE.toUnion

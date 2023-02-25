@@ -15,8 +15,15 @@ import { AssertionRefSha512 } from "../generated/definitions/internal/AssertionR
 import { AssertionRef } from "../generated/definitions/internal/AssertionRef";
 import { AssertionRefSha384 } from "../generated/definitions/internal/AssertionRefSha384";
 import { AssertionRefSha256 } from "../generated/definitions/internal/AssertionRefSha256";
-import { Ttl, ValidLolliPopPubKeys } from "../model/lollipop_keys";
 import { ActivatedPubKey } from "../generated/definitions/internal/ActivatedPubKey";
+import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus";
+
+import {
+  Ttl,
+  ValidLolliPopPubKeys,
+  RetrievedLolliPopPubKeys
+} from "../model/lollipop_keys";
+
 import { assertNever } from "./errors";
 import { calculateThumbprint } from "./thumbprint";
 
@@ -118,6 +125,26 @@ export const RetrievedValidPopDocument = t.intersection([
 export type RetrievedValidPopDocument = t.TypeOf<
   typeof RetrievedValidPopDocument
 >;
+
+// ------------------------
+// Type guards utilities
+// ------------------------
+
+export const isPendingLollipopPubKey = (
+  rd: RetrievedLolliPopPubKeys
+): rd is RetrievedValidPopDocument => rd.status === PubKeyStatusEnum.PENDING;
+
+export const isValidLollipopPubKey = (
+  rd: RetrievedLolliPopPubKeys
+): rd is RetrievedValidPopDocument => rd.status === PubKeyStatusEnum.VALID;
+
+export const isRevokenLollipopPubKey = (
+  rd: RetrievedLolliPopPubKeys
+): rd is RetrievedValidPopDocument => rd.status === PubKeyStatusEnum.REVOKED;
+
+// ------------------------
+// Mapping utilities
+// ------------------------
 
 export const retrievedLollipopKeysToApiActivatedPubKey = (
   popDocument: RetrievedValidPopDocument

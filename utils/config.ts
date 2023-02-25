@@ -10,7 +10,7 @@ import * as t from "io-ts";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 
-import { readableReport } from "@pagopa/ts-commons/lib/reporters";
+import * as reporters from "@pagopa/ts-commons/lib/reporters";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { withDefault } from "@pagopa/ts-commons/lib/types";
 
@@ -60,6 +60,8 @@ export const getConfigOrThrow = (): IConfig =>
   pipe(
     errorOrConfig,
     E.getOrElseW((errors: ReadonlyArray<t.ValidationError>) => {
-      throw new Error(`Invalid configuration: ${readableReport(errors)}`);
+      throw new Error(
+        `Invalid configuration: ${reporters.readableReportSimplified(errors)}`
+      );
     })
   );

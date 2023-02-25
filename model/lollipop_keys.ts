@@ -88,7 +88,12 @@ export const LolliPopPubKeys = t.union([
 export type LolliPopPubKeys = t.TypeOf<typeof LolliPopPubKeys>;
 
 // TN type
-export const NewLolliPopPubKeys = t.intersection([LolliPopPubKeys, Ttl]);
+export const NewLolliPopPubKeys = t.intersection([
+  LolliPopPubKeys,
+  t.partial({
+    ttl: NonNegativeInteger
+  })
+]);
 export type NewLolliPopPubKeys = t.TypeOf<typeof NewLolliPopPubKeys>;
 
 // TR type

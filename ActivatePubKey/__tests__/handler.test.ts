@@ -155,7 +155,6 @@ describe("activatePubKey handler", () => {
     expect(upsertMock).toHaveBeenCalledTimes(2);
     expect(upsertMock).toHaveBeenNthCalledWith(1, {
       pubKey: aPendingRetrievedPopDocument.pubKey,
-      ttl: TTL_VALUE_AFTER_UPDATE,
       // the assertion Ref for masterKey is created by the getAllAssertionRefs method
       assertionRef: assertionRefsResult.right.master,
       assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`,
@@ -166,7 +165,6 @@ describe("activatePubKey handler", () => {
     });
     expect(upsertMock).toHaveBeenNthCalledWith(2, {
       pubKey: aPendingRetrievedPopDocument.pubKey,
-      ttl: TTL_VALUE_AFTER_UPDATE,
       assertionRef: aValidSha256AssertionRef,
       assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}`,
       status: PubKeyStatusEnum.VALID,
@@ -243,7 +241,6 @@ describe("activatePubKey handler", () => {
     expect(upsertMock).toHaveBeenCalledTimes(1);
     expect(upsertMock).toHaveBeenCalledWith({
       pubKey: aPendingRetrievedPopDocument.pubKey,
-      ttl: TTL_VALUE_AFTER_UPDATE,
       // the assertion Ref for masterKey is created by the getAllAssertionRefs method
       assertionRef: assertionRefsResult.right.master,
       assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`,
