@@ -12,7 +12,7 @@ import { AssertionTypeEnum } from "@pagopa/io-functions-commons/dist/generated/d
 import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 import { ActivatePubKeyHandler } from "../handler";
-import { BlobService } from "azure-storage";
+import { BlobService, createBlobService } from "azure-storage";
 import { getPopDocumentReader } from "../../utils/readers";
 import { getAssertionWriter, getPopDocumentWriter } from "../../utils/writers";
 import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
@@ -29,6 +29,7 @@ import {
   aValidSha512AssertionRef,
   toEncodedJwk
 } from "../../__mocks__/lollipopPubKey.mock";
+import { blobServiceMock } from "../../__mocks__/blobService.mock";
 
 const aFiscalCode = "SPNDNL80A13Y555X" as FiscalCode;
 
@@ -68,7 +69,7 @@ const aPendingRetrievedPopDocumentWithMasterAlgo = {
   assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`
 };
 
-const upsertBlobFromObjectMock = jest.spyOn(fn_commons, "upsertBlobFromObject");
+const upsertBlobFromTextMock = jest.spyOn(fn_commons, "upsertBlobFromText");
 
 const findLastVersionByModelIdMock = jest
   .fn()
@@ -81,8 +82,6 @@ const lollipopPubKeysModelMock = ({
   upsert: upsertMock
 } as unknown) as LolliPOPKeysModel;
 
-const blobServiceMock = {} as BlobService;
-
 const contextMock = {} as any;
 
 const LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME = "assertions" as NonEmptyString;
@@ -93,7 +92,7 @@ describe("activatePubKey handler", () => {
   });
 
   it("should success given valid informations when used algo != master algo", async () => {
-    upsertBlobFromObjectMock.mockImplementationOnce(() =>
+    upsertBlobFromTextMock.mockImplementationOnce(() =>
       Promise.resolve(
         E.right(O.fromNullable({ name: "blob" } as BlobService.BlobResult))
       )
@@ -145,8 +144,8 @@ describe("activatePubKey handler", () => {
     expect(findLastVersionByModelIdMock).toHaveBeenCalledWith([
       aValidSha256AssertionRef
     ]);
-    expect(upsertBlobFromObjectMock).toHaveBeenCalledTimes(1);
-    expect(upsertBlobFromObjectMock).toHaveBeenCalledWith(
+    expect(upsertBlobFromTextMock).toHaveBeenCalledTimes(1);
+    expect(upsertBlobFromTextMock).toHaveBeenCalledWith(
       blobServiceMock,
       LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
       `${aValidActivatePubKeyPayload.fiscal_code}-${aValidSha256AssertionRef}`,
@@ -183,7 +182,7 @@ describe("activatePubKey handler", () => {
   });
 
   it("should success given valid informations when used algo == master algo", async () => {
-    upsertBlobFromObjectMock.mockImplementationOnce(() =>
+    upsertBlobFromTextMock.mockImplementationOnce(() =>
       Promise.resolve(
         E.right(O.fromNullable({ name: "blob" } as BlobService.BlobResult))
       )
@@ -231,8 +230,8 @@ describe("activatePubKey handler", () => {
     expect(findLastVersionByModelIdMock).toHaveBeenCalledWith([
       aValidSha512AssertionRef
     ]);
-    expect(upsertBlobFromObjectMock).toHaveBeenCalledTimes(1);
-    expect(upsertBlobFromObjectMock).toHaveBeenCalledWith(
+    expect(upsertBlobFromTextMock).toHaveBeenCalledTimes(1);
+    expect(upsertBlobFromTextMock).toHaveBeenCalledWith(
       blobServiceMock,
       LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME,
       `${aValidActivatePubKeyPayload.fiscal_code}-${aValidSha512AssertionRef}`,

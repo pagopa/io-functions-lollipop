@@ -21,7 +21,9 @@ import { PubKeyStatusEnum } from "../generated/definitions/internal/PubKeyStatus
 import {
   Ttl,
   ValidLolliPopPubKeys,
-  RetrievedLolliPopPubKeys
+  RetrievedLolliPopPubKeys,
+  PendingLolliPopPubKeys,
+  RevokedLolliPopPubKeys
 } from "../model/lollipop_keys";
 
 import { assertNever } from "./errors";
@@ -126,13 +128,31 @@ export type RetrievedValidPopDocument = t.TypeOf<
   typeof RetrievedValidPopDocument
 >;
 
+export const RetrievedPendingPopDocument = t.intersection([
+  PendingLolliPopPubKeys,
+  Ttl,
+  RetrievedVersionedModelTTL
+]);
+export type RetrievedPendingPopDocument = t.TypeOf<
+  typeof RetrievedPendingPopDocument
+>;
+
+export const RetrievedRevokedPopDocument = t.intersection([
+  RevokedLolliPopPubKeys,
+  Ttl,
+  RetrievedVersionedModelTTL
+]);
+export type RetrievedRevokedPopDocument = t.TypeOf<
+  typeof RetrievedRevokedPopDocument
+>;
+
 // ------------------------
 // Type guards utilities
 // ------------------------
 
 export const isPendingLollipopPubKey = (
   rd: RetrievedLolliPopPubKeys
-): rd is RetrievedValidPopDocument => rd.status === PubKeyStatusEnum.PENDING;
+): rd is RetrievedPendingPopDocument => rd.status === PubKeyStatusEnum.PENDING;
 
 export const isValidLollipopPubKey = (
   rd: RetrievedLolliPopPubKeys
@@ -140,7 +160,7 @@ export const isValidLollipopPubKey = (
 
 export const isRevokenLollipopPubKey = (
   rd: RetrievedLolliPopPubKeys
-): rd is RetrievedValidPopDocument => rd.status === PubKeyStatusEnum.REVOKED;
+): rd is RetrievedRevokedPopDocument => rd.status === PubKeyStatusEnum.REVOKED;
 
 // ------------------------
 // Mapping utilities

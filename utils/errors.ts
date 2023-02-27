@@ -86,6 +86,15 @@ export interface NotFoundError {
 
 export type DomainError = InternalError | NotFoundError;
 
+export const toInternalError = (errorDetail: string): InternalError => ({
+  detail: errorDetail,
+  kind: ErrorKind.Internal as const
+});
+
+export const toNotFoundError = (): NotFoundError => ({
+  kind: ErrorKind.NotFound as const
+});
+
 export const cosmosErrorsToString = (errs: CosmosErrors): NonEmptyString =>
   pipe(
     errs.kind === "COSMOS_EMPTY_RESPONSE"

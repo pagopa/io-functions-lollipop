@@ -268,8 +268,7 @@ describe("activatePubKey |> Success Results", () => {
       getBlobAsTextWithError(
         blobService,
         LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
-      )(anAssertionFileNameForSha256),
-      TE.map(O.map(JSON.parse))
+      )(anAssertionFileNameForSha256)
     )();
 
     expect(assertionBlob).toEqual(
@@ -360,8 +359,7 @@ describe("activatePubKey |> Success Results", () => {
       getBlobAsTextWithError(
         blobService,
         LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME
-      )(randomAssertionFileName),
-      TE.map(O.map(JSON.parse))
+      )(randomAssertionFileName)
     )();
 
     expect(assertionBlob).toEqual(
