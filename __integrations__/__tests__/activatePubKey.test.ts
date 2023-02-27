@@ -227,7 +227,7 @@ describe("activatePubKey |> Failures", () => {
     expect(body).toMatchObject({
       status: 500,
       title: "Internal server error",
-      detail: "Unexpected status on pop document"
+      detail: "Unexpected status on pop document during activation: REVOKED"
     });
   });
 });
