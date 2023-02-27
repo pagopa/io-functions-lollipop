@@ -28,7 +28,7 @@
     "predeploy": "npm-run-all build dist:*",
     "preversion": "auto-changelog  --config .auto-changelog.json --unreleased --commit-limit false --stdout --template preview.hbs",
     "version": "npm-run-all bump:*",
-    "bump-openapi": "npm-run-all openapi:* && git add openapi/*.yaml",
+    "bump:openapi": "npm-run-all openapi:* && git add openapi/*.yaml",
     "bump:changelog": "auto-changelog -p --config .auto-changelog.json --unreleased && git add CHANGELOG.md"
   },
   "devDependencies": {
