@@ -1,4 +1,4 @@
-import { flow, pipe } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as E from "fp-ts/lib/Either";
 import { upsertBlobFromText } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";

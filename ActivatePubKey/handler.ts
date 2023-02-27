@@ -117,6 +117,7 @@ export const ActivatePubKeyHandler = (
         TE.chainFirst(assertionFileName =>
           pipe(
             assertionWriter(assertionFileName, body.assertion),
+            // eslint-disable-next-line sonarjs/no-identical-functions
             TE.mapLeft(error => {
               const err = error.detail;
               context.log.error(err);
