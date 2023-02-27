@@ -120,7 +120,7 @@ export const ActivatePubKeyHandler = (
             TE.mapLeft(error => {
               const err = error.detail;
               context.log.error(err);
-              return ResponseErrorInternal(error.detail);
+              return ResponseErrorInternal(err);
             })
           )
         )

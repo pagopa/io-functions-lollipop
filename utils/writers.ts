@@ -46,23 +46,15 @@ export const getAssertionWriter = (
   assertion
 ): ReturnType<AssertionWriter> =>
   pipe(
-    TE.tryCatch(
-      () =>
-        new Promise<boolean>((resolve, reject) =>
-          assertionBlobService.doesBlobExist(
-            lollipopAssertionStorageContainerName,
-            assertionFileName,
-            (err, res) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(res.exists ?? false);
-              }
-            }
-          )
-        ),
-      flow(E.toError, e => toInternalError(e.message))
-    ),
+    TE.taskify<Error, BlobService.BlobResult>(cb =>
+      assertionBlobService.doesBlobExist(
+        lollipopAssertionStorageContainerName,
+        assertionFileName,
+        cb
+      )
+    )(),
+    TE.mapLeft(error => toInternalError(error.message)),
+    TE.map(blobResult => blobResult.exists ?? false),
     TE.filterOrElse(
       fileEsists => !fileEsists,
       () => toInternalError(`Assertion ${assertionFileName} already exists`)
