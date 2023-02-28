@@ -1,9 +1,7 @@
 import * as TE from "fp-ts/lib/TaskEither";
-import * as O from "fp-ts/lib/Option";
 import * as E from "fp-ts/lib/Either";
 import {
   AssertionFileName,
-  LolliPOPKeysModel,
   NewLolliPopPubKeys,
   RetrievedLolliPopPubKeys,
   TTL_VALUE_AFTER_UPDATE
@@ -13,20 +11,13 @@ import { AssertionTypeEnum } from "@pagopa/io-functions-commons/dist/generated/d
 import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 import { ActivatePubKeyHandler } from "../handler";
-import { BlobService } from "azure-storage";
-import { getPopDocumentReader, PopDocumentReader } from "../../utils/readers";
-import {
-  AssertionWriter,
-  getAssertionWriter,
-  getPopDocumentWriter,
-  PopDocumentWriter
-} from "../../utils/writers";
+import { PopDocumentReader } from "../../utils/readers";
+import { AssertionWriter, PopDocumentWriter } from "../../utils/writers";
 import { ActivatePubKeyPayload } from "../../generated/definitions/internal/ActivatePubKeyPayload";
 import {
   retrievedLollipopKeysToApiActivatedPubKey,
   RetrievedValidPopDocument
 } from "../../utils/lollipopKeys";
-import * as fn_commons from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
 import { getAllAssertionsRef } from "../../utils/lollipopKeys";
 import { JwkPubKeyHashAlgorithmEnum } from "../../generated/definitions/internal/JwkPubKeyHashAlgorithm";
 import {
@@ -38,7 +29,6 @@ import {
   aValidSha512AssertionRef,
   toEncodedJwk
 } from "../../__mocks__/lollipopPubKey.mock";
-import { blobServiceMock } from "../../__mocks__/blobService.mock";
 import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
 import { ErrorKind } from "../../utils/errors";
 import { contextMock } from "../../__mocks__/context.mock";
@@ -77,8 +67,6 @@ const aPendingRetrievedPopDocumentWithMasterAlgo = {
   assertionRef: aValidSha512AssertionRef,
   assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`
 };
-
-const LOLLIPOP_ASSERTION_STORAGE_CONTAINER_NAME = "assertions" as NonEmptyString;
 
 const popDocumentReaderMock = jest.fn(
   (assertionRef: AssertionRef) =>

@@ -2,7 +2,7 @@
 /* eslint-disable sort-keys */
 import { exit } from "process";
 
-import { CosmosClient, Database } from "@azure/cosmos";
+import { CosmosClient } from "@azure/cosmos";
 import { createBlobService } from "azure-storage";
 
 import * as TE from "fp-ts/TaskEither";
@@ -75,7 +75,7 @@ const cosmosClient = new CosmosClient({
 beforeAll(async () => {
   await pipe(
     createCosmosDbAndCollections(cosmosClient, COSMOSDB_NAME),
-    TE.getOrElse(e => {
+    TE.getOrElse(() => {
       throw Error("Cannot create infra resources");
     })
   )();
