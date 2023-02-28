@@ -27,7 +27,7 @@ const MAX_ATTEMPT = 50;
 jest.setTimeout(WAIT_MS * MAX_ATTEMPT);
 
 const baseUrl = "http://function:7071";
-const fetch = getNodeFetch();
+const nodeFetch = (getNodeFetch() as unknown) as typeof fetch;
 
 // ----------------
 // Setup dbs
@@ -87,7 +87,11 @@ const anotherReservePubKeyPayload = {
 
 describe("ReservePubKey", () => {
   test("GIVEN a new public key WHEN reserve the key THEN return a success containing the assertion ref", async () => {
-    const result = await fetchReservePubKey(aReservePubKeyPayload, baseUrl);
+    const result = await fetchReservePubKey(
+      aReservePubKeyPayload,
+      baseUrl,
+      nodeFetch
+    );
     const content = await result.json();
     expect(content).toEqual(
       expect.objectContaining({
@@ -99,11 +103,16 @@ describe("ReservePubKey", () => {
   test("GIVEN an already reserved public key WHEN reserve the key with any algo THEN return a conflict", async () => {
     const reserve = await fetchReservePubKey(
       anotherReservePubKeyPayload,
-      baseUrl
+      baseUrl,
+      nodeFetch
     );
     expect(reserve.status).toEqual(201);
 
-    const fail = await fetchReservePubKey(anotherReservePubKeyPayload, baseUrl);
+    const fail = await fetchReservePubKey(
+      anotherReservePubKeyPayload,
+      baseUrl,
+      nodeFetch
+    );
     expect(fail.status).toEqual(409);
 
     const failWith512 = await fetchReservePubKey(
@@ -111,7 +120,8 @@ describe("ReservePubKey", () => {
         ...anotherReservePubKeyPayload,
         algo: "sha512"
       },
-      baseUrl
+      baseUrl,
+      nodeFetch
     );
     expect(failWith512.status).toEqual(409);
 
@@ -120,13 +130,18 @@ describe("ReservePubKey", () => {
         ...anotherReservePubKeyPayload,
         algo: "sha384"
       },
-      baseUrl
+      baseUrl,
+      nodeFetch
     );
     expect(failWith384.status).toEqual(409);
   });
 
   test("GIVEN a malformed public key WHEN reserve the key THEN return a bad request", async () => {
-    const reserve = await fetchReservePubKey({ wrong: "wrong" }, baseUrl);
+    const reserve = await fetchReservePubKey(
+      { wrong: "wrong" },
+      baseUrl,
+      nodeFetch
+    );
     expect(reserve.status).toEqual(400);
   });
 });

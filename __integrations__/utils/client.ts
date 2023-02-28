@@ -1,3 +1,5 @@
+import { getNodeFetch } from "./fetch";
+
 export const ACTIVATE_PUB_KEY_PATH = "api/v1/pubkeys";
 export const fetchActivatePubKey = (
   assertionRef: string,
@@ -18,7 +20,7 @@ export const RESERVE_PUB_KEY_PATH = "api/v1/pubkeys";
 export const fetchReservePubKey = (
   body: unknown,
   baseUrl: string,
-  nodeFetch: typeof fetch = fetch
+  nodeFetch: typeof fetch
 ) =>
   nodeFetch(`${baseUrl}/${RESERVE_PUB_KEY_PATH}`, {
     method: "POST",
