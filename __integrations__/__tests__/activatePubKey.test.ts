@@ -299,7 +299,7 @@ describe("activatePubKey |> Success Results", () => {
             assertionRef: masterAssertionRef,
             assertionFileName: anAssertionFileNameForSha256,
             status: PubKeyStatusEnum.VALID,
-            version: 0
+            version: 1
           })
         )
       )

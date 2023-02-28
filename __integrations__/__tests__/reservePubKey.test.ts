@@ -160,7 +160,7 @@ const waitFunctionToSetup = async (): Promise<void> => {
   while (i < MAX_ATTEMPT) {
     log("Waiting the function to setup..");
     try {
-      await fetch(baseUrl + "/info");
+      await nodeFetch(baseUrl + "/info");
       break;
     } catch (e) {
       log("Waiting the function to setup...|" + JSON.stringify(e));
