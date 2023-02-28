@@ -20,6 +20,7 @@ import {
   COSMOSDB_KEY,
   COSMOSDB_NAME
 } from "../env";
+import { fetchReservePubKey } from "../utils/client";
 
 const MAX_ATTEMPT = 50;
 
@@ -84,20 +85,9 @@ const anotherReservePubKeyPayload = {
   }
 };
 
-const RESERVE_PUB_KEY_PATH = "api/v1/pubkeys";
-const fetchReservePubKey = (body: unknown) =>
-  fetch(`${baseUrl}/${RESERVE_PUB_KEY_PATH}`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-
 describe("ReservePubKey", () => {
   test("GIVEN a new public key WHEN reserve the key THEN return a success containing the assertion ref", async () => {
-    const result = await fetchReservePubKey(aReservePubKeyPayload);
+    const result = await fetchReservePubKey(aReservePubKeyPayload, baseUrl);
     const content = await result.json();
     expect(content).toEqual(
       expect.objectContaining({
@@ -107,27 +97,36 @@ describe("ReservePubKey", () => {
   });
 
   test("GIVEN an already reserved public key WHEN reserve the key with any algo THEN return a conflict", async () => {
-    const reserve = await fetchReservePubKey(anotherReservePubKeyPayload);
+    const reserve = await fetchReservePubKey(
+      anotherReservePubKeyPayload,
+      baseUrl
+    );
     expect(reserve.status).toEqual(201);
 
-    const fail = await fetchReservePubKey(anotherReservePubKeyPayload);
+    const fail = await fetchReservePubKey(anotherReservePubKeyPayload, baseUrl);
     expect(fail.status).toEqual(409);
 
-    const failWith512 = await fetchReservePubKey({
-      ...anotherReservePubKeyPayload,
-      algo: "sha512"
-    });
+    const failWith512 = await fetchReservePubKey(
+      {
+        ...anotherReservePubKeyPayload,
+        algo: "sha512"
+      },
+      baseUrl
+    );
     expect(failWith512.status).toEqual(409);
 
-    const failWith384 = await fetchReservePubKey({
-      ...anotherReservePubKeyPayload,
-      algo: "sha384"
-    });
+    const failWith384 = await fetchReservePubKey(
+      {
+        ...anotherReservePubKeyPayload,
+        algo: "sha384"
+      },
+      baseUrl
+    );
     expect(failWith384.status).toEqual(409);
   });
 
   test("GIVEN a malformed public key WHEN reserve the key THEN return a bad request", async () => {
-    const reserve = await fetchReservePubKey({ wrong: "wrong" });
+    const reserve = await fetchReservePubKey({ wrong: "wrong" }, baseUrl);
     expect(reserve.status).toEqual(400);
   });
 });

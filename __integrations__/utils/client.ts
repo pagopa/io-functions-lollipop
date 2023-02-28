@@ -13,3 +13,14 @@ export const fetchActivatePubKey = (
     },
     body: JSON.stringify(body)
   });
+
+export const RESERVE_PUB_KEY_PATH = "api/v1/pubkeys";
+export const fetchReservePubKey = (body: unknown, baseUrl: string) =>
+  fetch(`${baseUrl}/${RESERVE_PUB_KEY_PATH}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
