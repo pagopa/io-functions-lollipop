@@ -15,8 +15,12 @@ export const fetchActivatePubKey = (
   });
 
 export const RESERVE_PUB_KEY_PATH = "api/v1/pubkeys";
-export const fetchReservePubKey = (body: unknown, baseUrl: string) =>
-  fetch(`${baseUrl}/${RESERVE_PUB_KEY_PATH}`, {
+export const fetchReservePubKey = (
+  body: unknown,
+  baseUrl: string,
+  nodeFetch: typeof fetch = fetch
+) =>
+  nodeFetch(`${baseUrl}/${RESERVE_PUB_KEY_PATH}`, {
     method: "POST",
     headers: {
       Accept: "application/json",

@@ -230,7 +230,8 @@ describe("activatePubKey |> Success Results", () => {
     const randomJwk = await generateJwkForTest();
     const reserveResult = await fetchReservePubKey(
       { pub_key: randomJwk, algo: JwkPubKeyHashAlgorithmEnum.sha256 },
-      baseUrl
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
     );
 
     expect(reserveResult.status).toEqual(201);
@@ -325,7 +326,8 @@ describe("activatePubKey |> Success Results", () => {
         pub_key: randomJwk,
         algo: JwkPubKeyHashAlgorithmEnum.sha512
       },
-      baseUrl
+      baseUrl,
+      (myFetch as unknown) as typeof fetch
     );
 
     const resultBody = await resolveResult.json();

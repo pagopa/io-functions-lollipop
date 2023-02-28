@@ -134,12 +134,6 @@ paths:
                 $ref: '#/components/schemas/ProblemJson'
         '403':
           description: Forbidden
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemJson'
         '500':
           description: Internal Server Error
           content:
