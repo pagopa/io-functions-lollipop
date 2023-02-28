@@ -38,7 +38,6 @@ import { createBlobs } from "../__mocks__/utils/azure_storage";
 import { PubKeyStatusEnum } from "../../generated/definitions/internal/PubKeyStatus";
 import {
   aFiscalCode,
-  aValidJwk,
   aValidSha256AssertionRef,
   toEncodedJwk
 } from "../../__mocks__/lollipopPubKey.mock";
@@ -49,6 +48,7 @@ import { fetchActivatePubKey, fetchReservePubKey } from "../utils/client";
 import { AssertionRef } from "../../generated/definitions/internal/AssertionRef";
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import { JwkPubKeyHashAlgorithmEnum } from "../../generated/definitions/internal/JwkPubKeyHashAlgorithm";
+import { MASTER_HASH_ALGO } from "../../utils/lollipopKeys";
 
 const MAX_ATTEMPT = 50;
 
@@ -71,12 +71,9 @@ const cosmosClient = new CosmosClient({
   key: COSMOSDB_KEY
 });
 
-// eslint-disable-next-line functional/no-let
-let database: Database;
-
 // Wait some time
 beforeAll(async () => {
-  database = await pipe(
+  await pipe(
     createCosmosDbAndCollections(cosmosClient, COSMOSDB_NAME),
     TE.getOrElse(e => {
       throw Error("Cannot create infra resources");
@@ -99,13 +96,6 @@ beforeEach(() => {
 const cosmosInstance = cosmosClient.database(COSMOSDB_NAME);
 const container = cosmosInstance.container(LOLLIPOP_COSMOSDB_COLLECTION_NAME);
 const lolliPOPKeysModel = new LolliPOPKeysModel(container);
-
-const aNewPopDocument: NewLolliPopPubKeys = {
-  pubKey: toEncodedJwk(aValidJwk),
-  ttl: TTL_VALUE_FOR_RESERVATION,
-  assertionRef: aValidSha256AssertionRef,
-  status: PubKeyStatusEnum.PENDING
-};
 
 const expires = new Date();
 
@@ -172,8 +162,11 @@ describe("activatePubKey |> Validation Failures", () => {
 
 describe("activatePubKey |> Failures", () => {
   it("should return 500 Error when document cannot be found in cosmos", async () => {
+    const randomJwk = await generateJwkForTest();
+    const randomAssertionRef = await generateAssertionRefForTest(randomJwk);
+
     const response = await fetchActivatePubKey(
-      aValidSha256AssertionRef,
+      randomAssertionRef,
       validActivatePubKeyPayload,
       baseUrl,
       (myFetch as unknown) as typeof fetch
@@ -212,7 +205,7 @@ describe("activatePubKey |> Failures", () => {
 
     const res = await lolliPOPKeysModel.create(randomNewPopDocument)();
 
-    expect(res._tag).toEqual("Right");
+    expect(E.isRight(res)).toBeTruthy();
 
     const response = await fetchActivatePubKey(
       randomAssertionRef,
@@ -275,7 +268,7 @@ describe("activatePubKey |> Success Results", () => {
 
     // Check used key
     const sha256Document = await lolliPOPKeysModel.findLastVersionByModelId([
-      aValidSha256AssertionRef
+      resultBody.assertion_ref
     ])();
 
     expect(sha256Document).toEqual(
@@ -293,7 +286,7 @@ describe("activatePubKey |> Success Results", () => {
     // Check master document
     const masterAssertionRef = await generateAssertionRefForTest(
       randomJwk,
-      JwkPubKeyHashAlgorithmEnum.sha512
+      MASTER_HASH_ALGO
     );
     const masterDocument = await lolliPOPKeysModel.findLastVersionByModelId([
       masterAssertionRef
@@ -317,14 +310,14 @@ describe("activatePubKey |> Success Results", () => {
     const randomJwk = await generateJwkForTest();
     const randomAssertionRef = await generateAssertionRefForTest(
       randomJwk,
-      JwkPubKeyHashAlgorithmEnum.sha512
+      MASTER_HASH_ALGO
     );
     const randomAssertionFileName = `${validActivatePubKeyPayload.fiscal_code}-${randomAssertionRef}`;
 
     const resolveResult = await fetchReservePubKey(
       {
         pub_key: randomJwk,
-        algo: JwkPubKeyHashAlgorithmEnum.sha512
+        algo: MASTER_HASH_ALGO
       },
       baseUrl,
       (myFetch as unknown) as typeof fetch
