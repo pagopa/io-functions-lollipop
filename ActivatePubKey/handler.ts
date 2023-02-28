@@ -57,7 +57,7 @@ export const activatePubKeyForAssertionRef = (
       assertionFileName,
       assertionRef,
       assertionType: body.assertion_type,
-      expiredAt: body.expires_at,
+      expiredAt: body.expired_at,
       fiscalCode: body.fiscal_code,
       pubKey,
       status: PubKeyStatusEnum.VALID

@@ -125,7 +125,7 @@ const aValidPayload: ActivatePubKeyPayload = {
   fiscal_code: aFiscalCode,
   assertion: "an assertion" as NonEmptyString,
   assertion_type: AssertionTypeEnum.SAML,
-  expires_at: expiresAtDate
+  expired_at: expiresAtDate
 };
 
 describe("activatePubKey handler", () => {
@@ -163,7 +163,7 @@ describe("activatePubKey handler", () => {
 
     const aValidActivatePubKeyPayload: ActivatePubKeyPayload = {
       fiscal_code: aFiscalCode,
-      expires_at: new Date(),
+      expired_at: new Date(),
       assertion_type: AssertionTypeEnum.SAML,
       assertion: "" as NonEmptyString
     };
@@ -202,7 +202,7 @@ describe("activatePubKey handler", () => {
       status: PubKeyStatusEnum.VALID,
       assertionType: aValidActivatePubKeyPayload.assertion_type,
       fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
-      expiredAt: aValidActivatePubKeyPayload.expires_at
+      expiredAt: aValidActivatePubKeyPayload.expired_at
     });
     expect(upsertMock).toHaveBeenNthCalledWith(2, {
       pubKey: aPendingRetrievedPopDocument.pubKey,
@@ -211,7 +211,7 @@ describe("activatePubKey handler", () => {
       status: PubKeyStatusEnum.VALID,
       assertionType: aValidActivatePubKeyPayload.assertion_type,
       fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
-      expiredAt: aValidActivatePubKeyPayload.expires_at
+      expiredAt: aValidActivatePubKeyPayload.expired_at
     });
 
     expect(res.kind).toBe("IResponseSuccessJson");
@@ -249,7 +249,7 @@ describe("activatePubKey handler", () => {
 
     const aValidActivatePubKeyPayload: ActivatePubKeyPayload = {
       fiscal_code: aFiscalCode,
-      expires_at: new Date(),
+      expired_at: new Date(),
       assertion_type: AssertionTypeEnum.SAML,
       assertion: "" as NonEmptyString
     };
@@ -288,7 +288,7 @@ describe("activatePubKey handler", () => {
       status: PubKeyStatusEnum.VALID,
       assertionType: aValidActivatePubKeyPayload.assertion_type,
       fiscalCode: aValidActivatePubKeyPayload.fiscal_code,
-      expiredAt: aValidActivatePubKeyPayload.expires_at
+      expiredAt: aValidActivatePubKeyPayload.expired_at
     });
 
     expect(res.kind).toBe("IResponseSuccessJson");
@@ -324,8 +324,9 @@ describe("ActivatePubKey - Errors", () => {
     );
 
     expect(res).toMatchObject({
-      kind: "IResponseErrorNotFound",
-      detail: "NotFound: Could not find requested resource"
+      kind: "IResponseErrorInternal",
+      detail:
+        "Internal server error: Error while reading pop document: NotFound"
     });
 
     expect(popDocumentReaderMock).toHaveBeenCalledWith(
@@ -335,7 +336,7 @@ describe("ActivatePubKey - Errors", () => {
     expect(popDocumentWriterMock).not.toHaveBeenCalled();
   });
 
-  it("should return 500 Internal Error when a pop document with status DIFFERENT FROM PENDING is found", async () => {
+  it("should return 403 Forbidden Not Authorized when a pop document with status DIFFERENT FROM PENDING is found", async () => {
     popDocumentReaderMock.mockImplementationOnce(assertionRef =>
       TE.of({
         ...aRetrievedValidLollipopPubKeySha256,
@@ -358,11 +359,11 @@ describe("ActivatePubKey - Errors", () => {
       aValidPayload
     );
 
-    expect(res).toMatchObject({
-      kind: "IResponseErrorInternal",
-      detail:
-        "Internal server error: Unexpected status on pop document during activation: REVOKED"
-    });
+    expect(res).toMatchObject(
+      expect.objectContaining({
+        kind: "IResponseErrorForbiddenNotAuthorized"
+      })
+    );
 
     expect(popDocumentReaderMock).toHaveBeenCalledWith(
       aValidSha256AssertionRef
@@ -390,7 +391,8 @@ describe("ActivatePubKey - Errors", () => {
 
     expect(res).toMatchObject({
       kind: "IResponseErrorInternal",
-      detail: "Internal server error: an Error"
+      detail:
+        "Internal server error: Error while reading pop document: Internal"
     });
 
     expect(popDocumentReaderMock).toHaveBeenCalledWith(

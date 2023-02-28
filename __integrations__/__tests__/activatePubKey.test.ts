@@ -114,7 +114,7 @@ const expires = new Date();
 const validActivatePubKeyPayload: ActivatePubKeyPayload = {
   assertion_type: AssertionTypeEnum.SAML,
   assertion: "aValidAssertion" as NonEmptyString,
-  expires_at: expires,
+  expired_at: expires,
   fiscal_code: aFiscalCode
 };
 
@@ -173,7 +173,7 @@ describe("activatePubKey |> Validation Failures", () => {
 });
 
 describe("activatePubKey |> Failures", () => {
-  it("should return 404 when document cannot be found in cosmos", async () => {
+  it("should return 500 Error when document cannot be found in cosmos", async () => {
     const response = await fetchActivatePubKey(
       aValidSha256AssertionRef,
       validActivatePubKeyPayload,
@@ -181,11 +181,13 @@ describe("activatePubKey |> Failures", () => {
       (myFetch as unknown) as typeof fetch
     );
 
-    expect(response.status).toEqual(404);
+    expect(response.status).toEqual(500);
     const body = await response.json();
     expect(body).toMatchObject({
-      status: 404,
-      title: "NotFound"
+      status: 500,
+      title: "Internal server error",
+      detail:
+        "Internal server error: Error while reading pop document: NotFound"
     });
   });
 
@@ -208,7 +210,7 @@ describe("activatePubKey |> Failures", () => {
       fiscal_code: aFiscalCode,
       assertion: "aValidAssertion" as NonEmptyString,
       assertion_type: AssertionTypeEnum.SAML,
-      expires_at: expires
+      expired_at: expires
     };
 
     const res = await lolliPOPKeysModel.create(randomNewPopDocument)();
@@ -252,7 +254,7 @@ describe("activatePubKey |> Success Results", () => {
     const body = await response.json();
     expect(body).toMatchObject({
       fiscal_code: validActivatePubKeyPayload.fiscal_code,
-      expires_at: validActivatePubKeyPayload.expires_at.toISOString(),
+      expired_at: validActivatePubKeyPayload.expired_at.toISOString(),
       assertion_type: validActivatePubKeyPayload.assertion_type,
       assertion_ref: aValidSha256AssertionRef,
       assertion_file_name: anAssertionFileNameForSha256,
@@ -343,7 +345,7 @@ describe("activatePubKey |> Success Results", () => {
     const body = await response.json();
     expect(body).toMatchObject({
       fiscal_code: validActivatePubKeyPayload.fiscal_code,
-      expires_at: validActivatePubKeyPayload.expires_at.toISOString(),
+      expired_at: validActivatePubKeyPayload.expired_at.toISOString(),
       assertion_type: validActivatePubKeyPayload.assertion_type,
       assertion_ref: randomAssertionRef,
       assertion_file_name: randomAssertionFileName,

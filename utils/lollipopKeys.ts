@@ -5,7 +5,6 @@ import * as O from "fp-ts/Option";
 import { flow, pipe } from "fp-ts/lib/function";
 import { JwkPublicKey } from "@pagopa/ts-commons/lib/jwk";
 import * as t from "io-ts";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { RetrievedVersionedModelTTL } from "@pagopa/io-functions-commons/dist/src/utils/cosmosdb_model_versioned_ttl";
 import {
   JwkPubKeyHashAlgorithm,
@@ -169,10 +168,10 @@ export const isRevokenLollipopPubKey = (
 export const retrievedLollipopKeysToApiActivatedPubKey = (
   popDocument: RetrievedValidPopDocument
 ): ActivatedPubKey => ({
-  assertion_file_name: (popDocument.assertionFileName as unknown) as NonEmptyString,
+  assertion_file_name: popDocument.assertionFileName,
   assertion_ref: popDocument.assertionRef,
   assertion_type: popDocument.assertionType,
-  expires_at: popDocument.expiredAt,
+  expired_at: popDocument.expiredAt,
   fiscal_code: popDocument.fiscalCode,
   pub_key: popDocument.pubKey,
   status: popDocument.status,
