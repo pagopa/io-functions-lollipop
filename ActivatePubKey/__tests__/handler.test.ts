@@ -133,7 +133,7 @@ describe("activatePubKey handler", () => {
     jest.clearAllMocks();
   });
 
-  it("should success given valid informations when used algo != master algo", async () => {
+  it("should success given valid informations when used algo DIFFERENT FROM master algo", async () => {
     upsertBlobFromTextMock.mockImplementationOnce(() =>
       Promise.resolve(
         E.right(O.fromNullable({ name: "blob" } as BlobService.BlobResult))
@@ -223,7 +223,7 @@ describe("activatePubKey handler", () => {
     });
   });
 
-  it("should success given valid informations when used algo == master algo", async () => {
+  it("should success given valid informations when used algo EQUALS TO master algo", async () => {
     upsertBlobFromTextMock.mockImplementationOnce(() =>
       Promise.resolve(
         E.right(O.fromNullable({ name: "blob" } as BlobService.BlobResult))
@@ -335,7 +335,7 @@ describe("ActivatePubKey - Errors", () => {
     expect(popDocumentWriterMock).not.toHaveBeenCalled();
   });
 
-  it("should return 500 Internal Error when a pop document with status != PENDING is found", async () => {
+  it("should return 500 Internal Error when a pop document with status DIFFERENT FROM PENDING is found", async () => {
     popDocumentReaderMock.mockImplementationOnce(assertionRef =>
       TE.of({
         ...aRetrievedValidLollipopPubKeySha256,

@@ -50,7 +50,7 @@ export const PendingLolliPopPubKeys = t.interface({
 });
 export type PendingLolliPopPubKeys = t.TypeOf<typeof PendingLolliPopPubKeys>;
 
-export const BaseNotPendingLollipopPubKeys = t.interface({
+export const BaseNotPendingLolliPopPubKeys = t.interface({
   assertionFileName: AssertionFileName,
   assertionRef: AssertionRef,
   assertionType: AssertionType,
@@ -60,13 +60,13 @@ export const BaseNotPendingLollipopPubKeys = t.interface({
 });
 
 export const ValidLolliPopPubKeys = t.intersection([
-  BaseNotPendingLollipopPubKeys,
+  BaseNotPendingLolliPopPubKeys,
   t.interface({ status: t.literal(PubKeyStatusEnum.VALID) })
 ]);
 export type ValidLolliPopPubKeys = t.TypeOf<typeof ValidLolliPopPubKeys>;
 
 export const RevokedLolliPopPubKeys = t.intersection([
-  BaseNotPendingLollipopPubKeys,
+  BaseNotPendingLolliPopPubKeys,
   t.interface({ status: t.literal(PubKeyStatusEnum.REVOKED) })
 ]);
 export type RevokedLolliPopPubKeys = t.TypeOf<typeof RevokedLolliPopPubKeys>;

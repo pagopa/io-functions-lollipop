@@ -189,7 +189,7 @@ describe("activatePubKey |> Failures", () => {
     });
   });
 
-  it("should return 500 when the retrieved pop document has status != PENDING", async () => {
+  it("should return 500 when the retrieved pop document has status DIFFERS FROM PENDING", async () => {
     const randomJwk = await generateJwkForTest();
     const randomAssertionRef = await generateAssertionRefForTest(randomJwk);
     const randomAssertionFileName = `${aFiscalCode}-${randomAssertionRef}` as AssertionFileName;
@@ -233,7 +233,7 @@ describe("activatePubKey |> Failures", () => {
 });
 
 describe("activatePubKey |> Success Results", () => {
-  it("should succeed when valid payload is passed to the endpoint AND when algo != master", async () => {
+  it("should succeed when valid payload is passed to the endpoint AND when algo DIFFERS FROM master", async () => {
     // TODO: replace with insert call (POST /api/v1/pubKeys)
     const retrieved = await lolliPOPKeysModel.create(aNewPopDocument)();
 
@@ -311,7 +311,7 @@ describe("activatePubKey |> Success Results", () => {
     );
   });
 
-  it("should succeed when valid payload is passed to the endpoint AND when algo == master", async () => {
+  it("should succeed when valid payload is passed to the endpoint AND when algo EQUALS TO master", async () => {
     const randomJwk = await generateJwkForTest();
     const randomAssertionRef = await generateAssertionRefForTest(
       randomJwk,

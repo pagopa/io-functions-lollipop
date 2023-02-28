@@ -34,7 +34,7 @@ export const toEncodedJwk = (jwk: JwkPublicKey) =>
 export const aValidSha256AssertionRef = "sha256-a7qE0Y0DyqeOFFREIQSLKfu5WlbckdxVXKFasfcI-Dg" as AssertionRef;
 export const aValidSha512AssertionRef = "sha512-nX5CfUc5R-FoYKYZwvQMuc4Tt-heb7vHi_O-AMUSqHNVCw9kNaN2SVuN-DXtGXyUhrcVcQdCyY6FVzl_vyWXNA" as AssertionRef;
 
-export const aPendingSh256LollipopPubKey: PendingLolliPopPubKeys = {
+export const aPendingSha256LollipopPubKey: PendingLolliPopPubKeys = {
   assertionRef: aValidSha256AssertionRef,
   pubKey: toEncodedJwk(aValidJwk),
   status: PubKeyStatusEnum.PENDING
@@ -54,12 +54,12 @@ export const aCosmosResourceMetadata: Omit<CosmosResource, "id"> = {
 
 export const aRetrievedPendingLollipopPubKeySha256 = {
   ...aCosmosResourceMetadata,
-  ...aPendingSh256LollipopPubKey
+  ...aPendingSha256LollipopPubKey
 };
 
 export const aRetrievedValidLollipopPubKeySha256 = {
   ...aCosmosResourceMetadata,
-  ...aPendingSh256LollipopPubKey,
+  ...aPendingSha256LollipopPubKey,
   status: PubKeyStatusEnum.VALID,
   assertionFileName: `${aFiscalCode}-${aValidSha256AssertionRef}` as AssertionFileName,
   assertionType: AssertionTypeEnum.SAML,
@@ -71,6 +71,6 @@ export const aRetrievedValidLollipopPubKeySha256 = {
 
 export const aRetrievedPendingLollipopPubKeySha512 = {
   ...aCosmosResourceMetadata,
-  ...aPendingSh256LollipopPubKey,
+  ...aPendingSha256LollipopPubKey,
   assertionRef: aValidSha512AssertionRef
 };

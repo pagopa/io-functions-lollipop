@@ -12,6 +12,7 @@ import {
   IResponseErrorNotFound,
   IResponseErrorValidation,
   IResponseSuccessJson,
+  ResponseErrorForbiddenNotAuthorized,
   ResponseErrorInternal,
   ResponseSuccessJson
 } from "@pagopa/ts-commons/lib/responses";
@@ -33,7 +34,6 @@ import {
 
 import { AssertionWriter, PopDocumentWriter } from "../utils/writers";
 import { PopDocumentReader } from "../utils/readers";
-import { domainErrorToResponseError } from "../utils/errors";
 import {
   isPendingLollipopPubKey,
   isValidLollipopPubKey,
@@ -69,6 +69,14 @@ export const activatePubKeyForAssertionRef = (
     })
   );
 
+const logAndReturnAnInternalErrorResponse = (
+  message: string,
+  context: Context
+): IResponseErrorInternal => {
+  context.log.error(message);
+  return ResponseErrorInternal(message);
+};
+
 // -------------------------------
 // Handler
 // -------------------------------
@@ -95,11 +103,14 @@ export const ActivatePubKeyHandler = (
 ): ReturnType<ActivatePubKeyHandler> =>
   pipe(
     popDocumentReader(assertion_ref),
-    TE.mapLeft(domainErrorToResponseError),
+    TE.mapLeft(error => {
+      const err = `Error while reading pop document: ${error.kind}`;
+      return logAndReturnAnInternalErrorResponse(err, context);
+    }),
     TE.filterOrElseW(isPendingLollipopPubKey, doc => {
       const err = `Unexpected status on pop document during activation: ${doc.status}`;
       context.log.error(err);
-      return ResponseErrorInternal(err);
+      return ResponseErrorForbiddenNotAuthorized;
     }),
     TE.bindTo("popDocument"),
     TE.bindW("assertionFileName", () =>
@@ -111,17 +122,14 @@ export const ActivatePubKeyHandler = (
           const err = `Could not decode assertionFileName | ${readableReportSimplified(
             errors
           )}`;
-          context.log.error(err);
-          return ResponseErrorInternal(err);
+          return logAndReturnAnInternalErrorResponse(err, context);
         }),
         TE.chainFirst(assertionFileName =>
           pipe(
             assertionWriter(assertionFileName, body.assertion),
-            // eslint-disable-next-line sonarjs/no-identical-functions
             TE.mapLeft(error => {
               const err = error.detail;
-              context.log.error(err);
-              return ResponseErrorInternal(err);
+              return logAndReturnAnInternalErrorResponse(err, context);
             })
           )
         )
@@ -136,8 +144,7 @@ export const ActivatePubKeyHandler = (
           const err = `Could not decode public key | ${readableReportSimplified(
             errors
           )}`;
-          context.log.error(err);
-          return ResponseErrorInternal(err);
+          return logAndReturnAnInternalErrorResponse(err, context);
         })
       )
     ),
@@ -150,8 +157,7 @@ export const ActivatePubKeyHandler = (
         ),
         TE.mapLeft((error: Error) => {
           const err = error.message;
-          context.log.error(err);
-          return ResponseErrorInternal(err);
+          return logAndReturnAnInternalErrorResponse(err, context);
         })
       )
     ),
@@ -185,8 +191,7 @@ export const ActivatePubKeyHandler = (
       flow(
         TE.fromPredicate(isValidLollipopPubKey, () => {
           const err = `Unexpected retrievedPopDocument with a not VALID status`;
-          context.log.error(err);
-          return ResponseErrorInternal(err);
+          return logAndReturnAnInternalErrorResponse(err, context);
         }),
         TE.map(retrievedLollipopKeysToApiActivatedPubKey),
         TE.map(ResponseSuccessJson)
