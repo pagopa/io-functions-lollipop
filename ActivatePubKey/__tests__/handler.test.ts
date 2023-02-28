@@ -55,7 +55,7 @@ const aValidRetrievedPopDocument: RetrievedLolliPopPubKeys = {
   fiscalCode: aFiscalCode,
   expiredAt: new Date(),
   id: "1" as NonEmptyString,
-  version: 0 as NonNegativeInteger,
+  version: 1 as NonNegativeInteger,
   ...aCosmosResourceMetadata
 };
 
@@ -64,11 +64,11 @@ const aPendingRetrievedPopDocument: RetrievedLolliPopPubKeys = {
   status: PubKeyStatusEnum.PENDING
 };
 
-const aValidRetrievedPopDocumentWithMasterAlgo = {
+const aValidRetrievedPopDocumentWithMasterAlgo: RetrievedValidPopDocument = {
   ...aValidRetrievedPopDocument,
   assertionRef: aValidSha512AssertionRef,
-  assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}`
-} as RetrievedValidPopDocument;
+  assertionFileName: `${aFiscalCode}-${aValidSha512AssertionRef}` as AssertionFileName
+};
 
 const aPendingRetrievedPopDocumentWithMasterAlgo = {
   ...aPendingRetrievedPopDocument,
@@ -96,15 +96,15 @@ const popDocumentWriterMock = jest.fn(
       ...aRetrievedPendingLollipopPubKeySha256,
       ...item,
       id: `${item.assertionRef}-000001`,
-      version: 1
+      version: 1,
+      ttl: TTL_VALUE_AFTER_UPDATE
     }) as ReturnType<PopDocumentWriter>
 );
 const assertionWriterMock = jest.fn(
   () => TE.of(true) as ReturnType<AssertionWriter>
 );
 
-var expiresAtDate = new Date(); // Now
-expiresAtDate.setDate(expiresAtDate.getDate() + 30); // Set now + 30 days as the new date
+const expiresAtDate = new Date(); // Now
 
 const aValidPayload: ActivatePubKeyPayload = {
   fiscal_code: aFiscalCode,
@@ -131,7 +131,7 @@ describe("activatePubKey handler", () => {
 
     const aValidActivatePubKeyPayload: ActivatePubKeyPayload = {
       fiscal_code: aFiscalCode,
-      expired_at: new Date(),
+      expired_at: expiresAtDate,
       assertion_type: AssertionTypeEnum.SAML,
       assertion: "" as NonEmptyString
     };
@@ -202,7 +202,7 @@ describe("activatePubKey handler", () => {
 
     const aValidActivatePubKeyPayload: ActivatePubKeyPayload = {
       fiscal_code: aFiscalCode,
-      expired_at: new Date(),
+      expired_at: expiresAtDate,
       assertion_type: AssertionTypeEnum.SAML,
       assertion: "" as NonEmptyString
     };
