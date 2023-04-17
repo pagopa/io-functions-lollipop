@@ -1,4 +1,5 @@
 import { pipe } from "fp-ts/lib/function";
+/* eslint-disable */
 import * as A from "fp-ts/lib/Array";
 import * as O from "fp-ts/lib/Option";
 import * as crypto from "crypto";

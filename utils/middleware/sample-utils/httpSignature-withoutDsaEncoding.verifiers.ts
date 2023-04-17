@@ -1,3 +1,4 @@
+/* eslint-disable */
 import * as crypto from "crypto";
 import { JsonWebKey } from "crypto";
 import { algMap } from "@mattrglobal/http-signatures";
