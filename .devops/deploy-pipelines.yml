@@ -121,9 +121,9 @@ stages:
           - task: AzureFunctionApp@1
             inputs:
               azureSubscription: '$(PRODUCTION_AZURE_SUBSCRIPTION)'
-              resourceGroupName: 'io-p-weu-lollipop-rg'
+              resourceGroupName: 'io-p-itn-lollipop-rg-01'
               appType: 'functionApp'
-              appName: 'io-p-weu-lollipop-fn'
+              appName: 'io-p-itn-lollipop-fn-01'
               package: '$(Build.ArtifactStagingDirectory)/'
               deploymentMethod: 'auto'
               deployToSlotOrASE: true
@@ -142,7 +142,7 @@ stages:
           - checkout: none
           - script: |
               # fails if response status is not 2xx
-              curl -f 'https://io-p-weu-lollipop-fn-staging.azurewebsites.net/$(HEALTHCHECK_PATH)'
+              curl -f 'https://io-p-itn-lollipop-fn-01-staging.azurewebsites.net/$(HEALTHCHECK_PATH)'
             displayName: 'Healthcheck'
 
   # Promote the staging instance to production
@@ -156,8 +156,8 @@ stages:
           - task: AzureAppServiceManage@0
             inputs:
               azureSubscription: '$(PRODUCTION_AZURE_SUBSCRIPTION)'
-              resourceGroupName: 'io-p-weu-lollipop-rg'
-              webAppName: 'io-p-weu-lollipop-fn'
+              resourceGroupName: 'io-p-itn-lollipop-rg-01'
+              webAppName: 'io-p-itn-lollipop-fn-01'
               sourceSlot: staging
               swapWithProduction: true
             displayName: Swap with production slot
