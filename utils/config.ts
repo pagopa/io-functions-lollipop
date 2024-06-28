@@ -13,6 +13,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as reporters from "@pagopa/ts-commons/lib/reporters";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import {
+  IntegerFromString,
   NonNegativeInteger,
   NonNegativeIntegerFromString
 } from "@pagopa/ts-commons/lib/numbers";
@@ -65,14 +66,24 @@ export const JWTConfig = t.intersection([
   })
 ]);
 
+export type AppInsightsConfig = t.TypeOf<typeof AppInsightsConfig>;
+export const AppInsightsConfig = t.intersection([
+  t.type({
+    APPINSIGHTS_CLOUD_ROLE_NAME: NonEmptyString,
+    APPINSIGHTS_CONNECTION_STRING: NonEmptyString
+  }),
+  t.partial({
+    APPINSIGHTS_DISABLE: NonEmptyString,
+    APPINSIGHTS_SAMPLING_PERCENTAGE: IntegerFromString
+  })
+]);
+
 // ----------------------------
 // Global app configuration
 // ----------------------------
 export type IConfig = t.TypeOf<typeof IConfig>;
-// eslint-disable-next-line @typescript-eslint/ban-types
 export const IConfig = t.intersection([
   t.interface({
-    APPINSIGHTS_INSTRUMENTATIONKEY: NonEmptyString,
     AzureWebJobsStorage: NonEmptyString,
 
     COSMOSDB_KEY: NonEmptyString,
@@ -91,7 +102,8 @@ export const IConfig = t.intersection([
     isProduction: t.boolean
   }),
   JWTConfig,
-  FirstLcAssertionClientConfig
+  FirstLcAssertionClientConfig,
+  AppInsightsConfig
 ]);
 
 export const envConfig = {
