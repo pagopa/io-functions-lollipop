@@ -3,11 +3,16 @@ import * as express from "express";
 import { secureExpressApp } from "@pagopa/io-functions-commons/dist/src/utils/express";
 import { setAppContext } from "@pagopa/io-functions-commons/dist/src/utils/middlewares/context_middleware";
 import createAzureFunctionHandler from "@pagopa/express-azure-functions/dist/src/createAzureFunctionsHandler";
+import { initTelemetryClient } from "../utils/appinsights";
+import { getConfigOrThrow } from "../utils/config";
 import { Info } from "./handler";
 
+const config = getConfigOrThrow();
 // Setup Express
 const app = express();
 secureExpressApp(app);
+
+initTelemetryClient(config);
 
 // Add express route
 app.get("/info", Info());

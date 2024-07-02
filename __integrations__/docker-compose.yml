@@ -20,7 +20,7 @@ services:
       - ${COSMOSDB_PORT}:3000
 
   storage-account:
-    image: mcr.microsoft.com/azure-storage/azurite:3.9.0
+    image: mcr.microsoft.com/azure-storage/azurite:3.31.0
     ports:
       - 10000:10000
       - 10001:10001
