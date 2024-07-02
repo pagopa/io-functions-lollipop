@@ -15,9 +15,11 @@ const DEFAULT_SAMPLING_PERCENTAGE = 5;
 // Avoid to initialize Application Insights more than once
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const initTelemetryClient = (config: AppInsightsConfig) =>
-  ai.defaultClient
-    ? ai.defaultClient
-    : initAppInsights(config.APPINSIGHTS_CONNECTION_STRING, {
+  pipe(
+    ai.defaultClient,
+    O.fromNullable,
+    O.getOrElse(() => {
+      const client = initAppInsights(config.APPINSIGHTS_CONNECTION_STRING, {
         cloudRole: config.APPINSIGHTS_CLOUD_ROLE_NAME,
         disableAppInsights: config.APPINSIGHTS_DISABLE === "true",
         samplingPercentage: pipe(
@@ -26,6 +28,12 @@ export const initTelemetryClient = (config: AppInsightsConfig) =>
           O.getOrElse(() => DEFAULT_SAMPLING_PERCENTAGE)
         )
       });
+      // eslint-disable-next-line functional/immutable-data
+      client.config.correlationHeaderExcludedDomains =
+        config.APPINSIGHTS_EXCLUDED_DOMAINS || [];
+      return client;
+    })
+  );
 
 export type TelemetryClient = ReturnType<typeof initTelemetryClient>;
 
