@@ -71,7 +71,10 @@ export type AppInsightsConfig = t.TypeOf<typeof AppInsightsConfig>;
 export const AppInsightsConfig = t.intersection([
   t.type({
     APPINSIGHTS_CLOUD_ROLE_NAME: NonEmptyString,
-    APPINSIGHTS_CONNECTION_STRING: NonEmptyString
+    // required for both appinsights sdk and azure function runtime
+    // changing the name of this variable would cause data loss on app insights
+    // source-> https://learn.microsoft.com/en-us/azure/azure-functions/configure-monitoring?tabs=v2#enable-application-insights-integration
+    APPLICATIONINSIGHTS_CONNECTION_STRING: NonEmptyString
   }),
   t.partial({
     APPINSIGHTS_DISABLE: NonEmptyString,
