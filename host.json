@@ -3,6 +3,9 @@
   "logging": {
     "logLevel": {
       "default": "Information"
+    },
+    "applicationInsights": {
+      "enableDependencyTracking": false
     }
   },
   "extensions": {
