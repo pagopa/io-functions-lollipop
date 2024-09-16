@@ -2,6 +2,11 @@ import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as E from "fp-ts/lib/Either";
 import { upsertBlobFromText } from "@pagopa/io-functions-commons/dist/src/utils/azure_storage";
+// NOTE: applicationinsights nodejs sdk includes additional headers towards requests on all
+// type of storage accounts. without APPINSIGHTS_EXCLUDED_DOMAINS env var, all requests would
+// fail for an unexpected signature from the storage account. if a migration is happening,
+// please remember to remove APPINSIGHTS_EXCLUDED_DOMAINS env var from the project to enable
+// tracing on storage account requests
 import { BlobService } from "azure-storage";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import {
