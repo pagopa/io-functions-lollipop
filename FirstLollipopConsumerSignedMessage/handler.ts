@@ -20,7 +20,7 @@ import { flow, pipe } from "fp-ts/lib/function";
 import * as E from "fp-ts/Either";
 import { readableReportSimplified } from "@pagopa/ts-commons/lib/reporters";
 import { FiscalCode } from "@pagopa/ts-commons/lib/strings";
-import { DOMParser } from "xmldom";
+import { DOMParser } from "@xmldom/xmldom";
 import { SignMessagePayload } from "../generated/definitions/lollipop-first-consumer/SignMessagePayload";
 import { SignMessageResponse } from "../generated/definitions/lollipop-first-consumer/SignMessageResponse";
 import { Client } from "../generated/definitions/external/client";
