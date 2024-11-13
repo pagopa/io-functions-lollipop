@@ -85,9 +85,14 @@ export const GenerateLCParamsHandler = (
     TE.filterOrElseW(isValidLollipopPubKey, doc =>
       pipe(
         ResponseErrorForbiddenNotAuthorized,
-        defaultLog.peek.error(
-          `Unexpected status on pop document: expected ${PubKeyStatusEnum.VALID}, found ${doc.status}`
-        )
+        eventLog.peek.error([
+          `Unexpected status on pop document: expected ${PubKeyStatusEnum.VALID}, found ${doc.status}`,
+          {
+            assertion_ref: assertionRef,
+            name: FN_LOG_NAME,
+            operation_id: payload.operation_id
+          }
+        ])
       )
     ),
     TE.filterOrElseW(
