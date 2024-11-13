@@ -143,7 +143,7 @@ describe("GenerateLCParamsHandler", () => {
     )(contextMock, anAssertionRef, aValidGenerateLcParamsPayload);
 
     expect(contextMock.log.error).toHaveBeenCalledTimes(1);
-    expect(telemetryClientMock.trackEvent).toHaveBeenCalledTimes(0);
+    expect(telemetryClientMock.trackEvent).toHaveBeenCalledTimes(1);
     expect(contextMock.log.error).toHaveBeenCalledWith(
       `Unexpected status on pop document: expected ${PubKeyStatusEnum.VALID}, found ${aPendingLolliPopPubKeys.status}`
     );
