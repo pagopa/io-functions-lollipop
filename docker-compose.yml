@@ -38,7 +38,7 @@ services:
       - "traefik.http.routers.functions.middlewares=testHeader"
 
   fnstorage:
-    image: mcr.microsoft.com/azure-storage/azurite:3.9.0
+    image: mcr.microsoft.com/azure-storage/azurite:3.9.0@sha256:6b6c9c24e97a6c000a81503a41bbf366f04c23aa3b473bfc27267145c92eeceb
     ports:
       - "10000:10000"
       - "10001:10001"
@@ -47,7 +47,7 @@ services:
       - io-fn
 
   storage:
-    image: mcr.microsoft.com/azure-storage/azurite:3.9.0
+    image: mcr.microsoft.com/azure-storage/azurite:3.9.0@sha256:6b6c9c24e97a6c000a81503a41bbf366f04c23aa3b473bfc27267145c92eeceb
     command: ["sh", "-c", "node bin/azurite -l /opt/azurite/folder --blobPort 10003 --queuePort 10004 --tablePort 10005"]
     ports:
       - "10003:10003"
@@ -71,7 +71,7 @@ services:
       - io-fn
 
   traefik:
-    image: traefik:v2.0
+    image: traefik:v2.0@sha256:df0671f3cd101dad36b444e0fc586bedc05604ecda10f33b5d1f3487816d8c9f
     command: |-
       --entrypoints.web.address=:80
       --providers.docker=true

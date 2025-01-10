@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       # from https://github.com/pagopa/opex-dashboard-azure-action/
-      - uses: pagopa/opex-dashboard-azure-action@v1.0.4
+      - uses: pagopa/opex-dashboard-azure-action@44ff7e926110b207ef99d2972953ec29d5bb2bc6 # v1.0.4
         with:
           environment: ${{ matrix.environment }}
           api-name: ${{ env.API_NAME }}
